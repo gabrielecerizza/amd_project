@@ -1,0 +1,2 @@
+# Ukraine War Similar Tweets - Algorithms for Massive Datasets Project
+Project repository for the Algorithms for Massive Datasets course of Università degli Studi di Milano (UNIMI), academic year 2021/2022.
