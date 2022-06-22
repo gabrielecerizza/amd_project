@@ -1,5 +1,6 @@
 \documentclass[runningheads]{llncs}
 \usepackage{amsmath}
+\usepackage{amsfonts}
 \usepackage{booktabs}
 \usepackage[compress]{cite}
 \usepackage{color}
@@ -36,11 +37,74 @@ The dataset comprises 109 compressed CSV files. For each sampled tweet, we can f
 
 \subsection{Preprocessing}
 
-A number of preprocessing steps were performed on the text of the tweets, having two objectives in mind: (i) discarding noisy and irrelevant information; and (ii) reducing the number of different characters that could be found in the tweets, which adversely affects the model complexity (see further ...). Additionally, we dropped duplicates within each given file, having found a sizeable number of 
+At the outset, within each given file, we dropped duplicate tweets, which were present in a sizeable number. Beforehand, we stripped all URLs from the tweets, since we found some that differed only in a URL placed inside the text.  
 
-In particular, we performed the following 
+A number of preprocessing steps were then performed on the documents, having two objectives in mind: (i) discarding noisy and irrelevant information; and (ii) reducing the number of different characters that could be found in the tweets, which adversely affects the model complexity (see further ...). 
 
+In particular, we performed the following preprocessing steps:
 
+\begin{enumerate}
+    \item we replaced words with accents with their counterparts without accents;
+    \item we replaced special UNICODE characters with their ASCII counterparts, for instance “$\mathbb{R}$" with “R";
+    \item we replaced the ampersand with “and";
+    \item we replaced each token with the corresponding lemma, to increase the match between words like “invasion" and “invaded";
+    \item we removed stop words;
+    \item we converted everything to lowercase;
+    \item we removed punctuation symbols;
+    \item we removed non-ASCII characters, except for cyrillic characters;
+    \item we normalized the whitespace.
+\end{enumerate}
+
+While numbers might be considered noise in some contexts, here we decided to keep them. Indeed, in our context, numbers could be found in dates, Twitter handles of influential people and military equipment (e.g., the Russian T-72 tank) and could help in discriminating the documents.
+
+When feeding the Transformer-based model, which was used for comparison, we performed only light preprocessing. We replaced the ampersand, we lowercased the text and we normalized the whitespace. In this way, we could leverage the ability of the Transformer to exploit the context of each word, which would have been hampered by removing punctuation and stop words or by lemmatizing the tokens.
+
+\section{Models for Document Similarity}
+\label{sec:models}
+
+In this section we briefly describe the approach used to find similar documents (Sec.~\ref{subsec:models:lsh}) and the neural network model we used as a baseline (Sec.~~\ref{subsec:models:transformer}).
+
+\subsection{Locality-sensitive hashing technique}
+\label{subsec:models:lsh}
+
+In order to find the pairs of similar documents, we employed the algorithm described in~\cite{leskovec_2020}, which can scale up to massive datasets. This algorithm converts each document to a set of k-grams (shingles), builds a characteristic matrix and then a signature matrix by using hash functions, applies a locality-sensitive hashing (LSH) technique to find candidate similar pairs and, finally, checks the candidate pairs against the signature matrix to discard false positive pairs. Optionally, one could check the candidate pairs also against the characteristic matrix, if available.
+
+Concerning the implementation details, we first discuss the various hash functions exploited by the algorithm. To avoid keeping the shingles in main memory, the algorithm hashes each shingle to a bucket, in the form of an integer. The total number of buckets associated to the hash function has a significant impact on the execution time. Being confronted with the problem of finding hash functions that could map to a different number of buckets, we decided to generate different hash functions by truncating the output of the SHA-256 hash function at varying length of bits. In this way, we could experiment with several number of buckets.
+
+The algorithm requires also hash functions that could map a row index to another row index. These hash functions are used to efficiently perform permutations of the rows. Since the number of these hash functions is a hyper-parameter set by the user, we needed a way to generate an arbitrary number of different hash functions. To this end, we followed the approach described in~\cite{liu_2015} to generate hash functions of the form
+\[
+  h(x) = (ax + b)~\text{mod}~c~,  
+\]
+where $x$ is a row number, $a$ and $b$ are random numbers smaller than the maximum row number and $c$ is a prime number higher than the maximum row number. Note that $a$ and $b$ must be unique for a given signature matrix.
+
+In order to build the signature matrix, the algorithm also requires a characteristic matrix, where each column represents a document and each entry indicates whether or not a given shingle is contained in a given document. We store the characteristic matrix as a dictionary that maps each document index to its set of shingles. In this way, we do not waste memory to store the zeroes.
+
+Concerning the LSH technique, we simply note that, to check which columns are equal, 
+
+As such, we decided to experiment with   
+The algorithm 
+
+\subsection{Transformer neural network}
+\label{subsec:models:transformer}
+
+The dataset did not provide a ground truth against which we could compare our results. Therefore, we decided to use a state-of-the-art model in the field of natural language processing (NLP) to serve as a baseline. To this end, we opted to use MPNet, which is a Transformer-based model based on the revolutionary BERT neural network. 
+
+Why better than word2vec
+
+A neural network would not be able to compute the pairwise similarity between each pair of documents in a reasonable amount of time. As a consequence, 
+
+After feeding the documents to 
+
+Non-cryptographic function
+
+and which has been found to work well  
+
+To achieve this goal
+To this end
+
+, so we removed all URLs 
+beforehand. 
+We also removed URLs from tweets, since that differed only in hashtags or in  placed within the messages were not filtered, since . 
 
 might skew
 
