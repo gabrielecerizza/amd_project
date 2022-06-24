@@ -55,7 +55,7 @@ In particular, we performed the following preprocessing steps:
     \item we normalized the whitespace.
 \end{enumerate}
 
-While numbers might be considered noise in some contexts, here we decided to keep them. Indeed, in our context, numbers could be found in dates, Twitter handles of influential people and military equipment (e.g., the Russian T-72 tank) and could help in discriminating the documents.
+While numbers might be considered noise in some contexts, here we decided to keep them. Indeed, in our context, numbers could be found in dates, Twitter handles of influential people and military equipment (e.g., the Russian T-72 tank or the M982 Excalibur 155 mm shell) and could help in discriminating the documents.
 
 When feeding the Transformer-based model, which was used for comparison, we performed only light preprocessing. We replaced the ampersand, we lowercased the text and we normalized the whitespace. In this way, we could leverage the ability of the Transformer to exploit the context of each word, which would have been hampered by removing punctuation and stop words or by lemmatizing the tokens.
 
@@ -81,6 +81,12 @@ In order to build the signature matrix, the algorithm also requires a characteri
 
 Concerning the LSH technique, we simply note that, to check which columns are equal, 
 
+Optimizer to find b and r
+Hash in LSH
+
+CHANGED PIPELINE (some differed for only some whitespace or for a capital letter (mint and MINT))
+
+Problem with low threshold, ends RAM with combinations
 As such, we decided to experiment with   
 The algorithm 
 
@@ -95,10 +101,11 @@ A neural network would not be able to compute the pairwise similarity between ea
 
 After feeding the documents to 
 
+Example of similar tweets
 Non-cryptographic function
 
 and which has been found to work well  
-
+Link a zip with checkpoints in the github
 To achieve this goal
 To this end
 
