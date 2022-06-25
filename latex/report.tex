@@ -83,12 +83,32 @@ Concerning the LSH technique, we simply note that, to check which columns are eq
 
 Optimizer to find b and r
 Hash in LSH
-
+Last layer has most meaning
+TFIDF? Need to traverse the whole dataset to compute, taxing operation
+Two semantically different pipelines: to filter almost identical tweets, and the other.
+Punctuation and non-ascii removed later, because they might help the lemmatizer
 CHANGED PIPELINE (some differed for only some whitespace or for a capital letter (mint and MINT))
 
 Problem with low threshold, ends RAM with combinations
 As such, we decided to experiment with   
 The algorithm 
+used dictionary to store shingles 
+
+crash with t.02, too many pairs
+with t=0.4 6346167 candidate pairs, actual 342671 
+
+We do not drop duplicates across different files, as that would require to load in main memory millions of documents. Plenty of retweets. Plenty of very short tweets that are identical after preprocessing /lemmatization. But filtering on string length isn't suitable due to the instrinsic short nature of tweets.  
+Sometimes only changed a handle or more, but removing handles might remove important parts (many quote zelensky with handle for instance).
+
+Removing handles might be somehow questionable... Si ma poi se tanto retweettano in altri file compare comunque.
+
+Dai, remove handle e testi più lunghi di tot...
+ONLY EN language
+
+
+CHECK TP ON ACTUAL OUTPUT, AFTER THRESH CHECK
+
+Generate the combinations manually and add one at a time, to avoid ram problem?
 
 \subsection{Transformer neural network}
 \label{subsec:models:transformer}
