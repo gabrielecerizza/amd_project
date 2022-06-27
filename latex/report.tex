@@ -35,7 +35,7 @@ The dataset employed in our experiments was the “Ukraine Conflict Twitter Data
 
 The dataset comprises 109 compressed CSV files. For each sampled tweet, we can find information concerning the author, the text, the hashtags, the language and the date of creation of the messages. It is worth noting that the naming of the files is not consistent, which hinders attempts to process the tweets chronologically. (Image of a tweet in dataframe?)
 
-\subsection{Preprocessing}
+\subsection{Filtering and Preprocessing}
 
 At the outset, within each given file, we dropped duplicate tweets, which were present in a sizeable number. Beforehand, we stripped all URLs from the tweets, since we found some that differed only in a URL placed inside the text.  
 
@@ -94,6 +94,14 @@ As such, we decided to experiment with
 The algorithm 
 used dictionary to store shingles 
 
+Strip again punctuation because some of the lemmas had punctuation symbols like \_ in them.
+
+fast spike increase in shingles at low documents
+
+used spacy 
+
+Cannot use spacy on dataframe, takes too much time
+
 crash with t.02, too many pairs
 with t=0.4 6346167 candidate pairs, actual 342671 
 
@@ -104,6 +112,7 @@ Removing handles might be somehow questionable... Si ma poi se tanto retweettano
 
 Dai, remove handle e testi più lunghi di tot...
 ONLY EN language
+Should have kept the retweet flag
 
 
 CHECK TP ON ACTUAL OUTPUT, AFTER THRESH CHECK
