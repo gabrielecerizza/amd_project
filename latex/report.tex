@@ -110,7 +110,7 @@ The algorithm requires also hash functions that could map a row index to another
 \[
   h(x) = (ax + b)~\text{mod}~c~,  
 \]
-where $x$ is a row number, $a$ and $b$ are random numbers smaller than the maximum row number and $c$ is a prime number higher than the maximum row number. Note that $a$ and $b$ must be unique for a given signature matrix.
+where $x$ is a row number, $a$ and $b$ are random numbers smaller than the maximum row number and $c$ is a prime number higher than the maximum row number.
 
 Inside the LSH technique, to check whether two columns were equal, we hashed the string composed by the sequence of integers inside each column using the default \texttt{hash} function provided by Python. This allowed us compress a potentially huge array of numbers into a single number, thus saving main memory space. 
 
@@ -127,7 +127,7 @@ where $t$ is a threshold on the required similarity between two documents to mar
 
 As noted before, we checked whether the columns were equal by hashing their representations as strings.
 
-\subsubsection{Scalability bottlenecks.} The implementation of the algorithm features two possible scalability bottlenecks. The first one concerns the characteristic matrix. Using 3-grams, 4-grams, 5-grams and 6-grams, each document contained on average 120-130 shingles. If we represented each shingle with a 32-bit integer, processing 10 million documents would require roughly 5 gigabytes of main memory ($\frac{1e7 \cdot 130 \cdot 32}{8e9} = 5.2$). Keeping the whole dataset (40 million documents) in main memory might prove challenging or even impossible. A solution could be to store the documents representations as sets of shingles in mass memory and read them one at a time when building the signature matrix. However, that would slow down an already time consuming operation.
+\subsubsection{Scalability bottlenecks.} The implementation of the algorithm features two possible scalability bottlenecks. The first one concerns the characteristic matrix. Using 3-grams, 4-grams, 5-grams and 6-grams, each document contained on average 120-130 shingles. If we represented each shingle with a 32-bit integer, processing 10 million documents would require roughly 5 gigabytes of main memory ($\frac{1e7 \cdot 130 \cdot 32}{8e9} = 5.2$). Keeping the whole dataset (40 million documents) in main memory might prove challenging or even impossible. A solution could be to store the documents representations as sets of shingles in mass memory and read them one at a time when building the signature matrix. However, that would slow down an already time consuming operation, since we would have to cycle through the documents for each row of the characteristic matrix while building the signature matrix.
 
 The second bottleneck concerns the number of similar pairs. The lower the value for the threshold, the higher the number of similar pairs identified by the algorithm. When processing millions of documents, even a moderate threshold might saturate the main memory. The only possible solution would be to store the candidate pairs identified by the LSH algorithm on mass memory. This would happen within each band and, therefore, we would not be able to have unique pairs: the same pair might be identified and stored on mass memory in more than one band. This will result in redundant processing. 
 
@@ -453,7 +453,10 @@ As a further improvement, we could use a non-cryptographic hash function, instea
 
 We could improve the algorithm by appending argument type constraints to the templates.
 
-MAE ON TP AND FP, OR ALSO TN AND FN
+MAE ON TP AND FP only, because algo doesn't have negatives similarity
+Meaningless accuracy because most pairs are true negative
+
+PUT THE BADGE IN README
 
 INCONSISTENT RESULTS FOR THRESHOLD AND NUMBER OF BITS (3-GRAMS, thresh 0.1). Different hash though.
 the probability that any prefixed shingle will be contained in my document will be small $= 280 / 68^3$
