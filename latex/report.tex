@@ -445,16 +445,21 @@ Results were still acceptable and required much less time
 \section{Conclusions}
 \label{sec:conclusions}
 
-This work investigated the performance of the LSH algorithm described in Section~\ref{subsec:models:lsh} across different configurations of hyper-parameters. The algorithm proved to be effective at processing massive amounts of data and at properly estimating the Jaccard similarity between documents. The main pitfall of the algorithm is that Jaccard similarity on k-grams, as shown in Section~\ref{subsec:models:motivation}, might not capture semantic similarity between documents. Given the fact that the algorithm is built on top of a Boolean matrix, this issue may prove difficult to address, since we cannot exploit state-of-the-art word embeddings.
+This work investigated the performance of the LSH algorithm described in Section~\ref{subsec:models:lsh} across different configurations of hyper-parameters. The algorithm proved to be effective at processing massive amounts of data and at properly estimating the Jaccard similarity between documents. The main pitfall of the algorithm is that Jaccard similarity on k-grams, as shown in Section~\ref{subsec:models:motivation}, might not capture semantic similarity between documents. Given the fact that the algorithm is built on top of a Boolean matrix, this issue may prove difficult to address. The reason is that we cannot exploit state-of-the-art word embeddings, unless we find a way to suitably encode them as sets.
 
-Another critical aspect of the algorithm was the execution time, as mentioned in Section~\ref{subsec:experiments:buckets}. Building the signature matrix is an expensive operation, especially when using hash functions with a high number of buckets. In~\cite{leskovec_2020} there are suggestions on how to cope with this issue, at the cost of a coarser approximation of the Jaccard similarity.
+Another critical aspect of the algorithm was the execution time, as mentioned in Section~\ref{subsec:experiments:buckets}. Building the signature matrix is an expensive operation, especially when using hash functions with a high number of buckets. In~\cite{leskovec_2020} there are suggestions on how to address this issue, at the cost of a coarser approximation of the Jaccard similarity.
 
 As a further improvement, we could use a non-cryptographic hash function, instead of SHA-256, to generate hash functions with a variable number of buckets. That should speed up the execution.
 
 We could improve the algorithm by appending argument type constraints to the templates.
 
-INCONSISTENT RESULTS FOR THRESHOLD AND NUMBER OF BITS (3-GRAMS, thresh 0.1). Different hash though.
+MAE ON TP AND FP, OR ALSO TN AND FN
 
+INCONSISTENT RESULTS FOR THRESHOLD AND NUMBER OF BITS (3-GRAMS, thresh 0.1). Different hash though.
+the probability that any prefixed shingle will be contained in my document will be small $= 280 / 68^3$
+SET SEED WHEN CREATING HASH
+
+ADD ACCURACY?
 
 After feeding the documents to 
 
