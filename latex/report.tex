@@ -28,7 +28,7 @@
 
 In this report we detail our findings in the study of an algorithm capable of identifying similar pairs of documents within massive datasets. The experiments illustrated hereinafter were carried out as part of a project for the Algorithms for Massive Datasets course of Università degli Studi di Milano.
 
-In Section~\ref{sec:dataset} we illustrate the dataset and the adopted pre-processing techniques. In Section~\ref{sec:models} we briefly describe the algorithm and its implementation. We also outline the neural network model used to evaluate the performance of the algorithm. In Section~\ref{sec:experiments} we expound on the findings of our experiments. Finally, Section~\ref{sec:conclusions} contains our concluding remarks.
+In Section~\ref{sec:dataset} we illustrate the dataset and the adopted pre-processing techniques. In Section~\ref{sec:models} we briefly describe the algorithm and its implementation. We also outline the neural network used as comparison. In Section~\ref{sec:experiments} we comment our experiments. Finally, Section~\ref{sec:conclusions} contains our concluding remarks.
 
 \section{Dataset}
 \label{sec:dataset}
@@ -42,14 +42,14 @@ The dataset employed in our experiments was the “Ukraine Conflict Twitter Data
 
 This dataset boasts a total of over 40 million tweets concerning the conflict between Russia and Ukraine, which broke out on the 24$^{\text{th}}$ of February 2022. Those tweets were collected daily by monitoring hashtags. The dataset was first published on the 27$^{\text{th}}$ of February 2022. In the remainder of this report, we will refer to the version 127 of the dataset, downloaded on the 19$^{\text{th}}$ of June 2022. 
 
-The dataset comprises 109 compressed CSV files. For each sampled tweet, we can find information concerning the author, the text, the hashtags, the language and the date of creation of the messages. We used the \texttt{text} field to extract each document and the \texttt{language} field to select a subset of English documents. 
+The dataset comprises 109 compressed CSV files. For each sampled tweet, among others, we can find information concerning the author, the text, the hashtags, the language and the date of creation of the messages. We used the \texttt{text} field to extract each document and the \texttt{language} field to select only English documents. 
 
 It is worth noting that the naming of the files is not consistent, which hinders attempts to process the tweets chronologically.
 
 \subsection{Filtering and Pre-processing}
 \label{subsec:dataset:preprocessing}
 
-The dataset contains a sizeable number of retweets or tweets that differ only for the inclusion of a number or emoji or handle or punctuation symbol or URL. Tweets consisting only of hashtags or very short messages are likewise abundant. Given the nature of the Twitter platform, this is to be expected. However, such documents do not provide a substantial challenge to models aiming at retrieving similar documents, given the amount of identical, overlapping text. For this reason, we set out to remove as much as possible those documents by way of a first filtering phase. The documents were then further pre-processed before being fed to the models.
+The dataset contains a sizeable number of retweets or tweets that differ only for the inclusion of a number or emoji or handle or punctuation symbol or URL. Tweets consisting only of hashtags or very short messages are likewise abundant. Given the nature of Twitter, this is to be expected. However, such documents do not provide a substantial challenge to models aimed at retrieving similar documents, given the amount of identical, overlapping text. For this reason, we set out to remove as much as possible those documents by way of a first filtering phase. The documents were then further pre-processed before being fed to the models.
 
 \subsubsection{Filtering.} Filtering was carried out by performing the following operations: 
 
@@ -63,23 +63,23 @@ The dataset contains a sizeable number of retweets or tweets that differ only fo
   \item we removed non-ASCII characters, except for cyrillic characters;
   \item we removed punctuation symbols;
   \item we removed stop words;
-  \item we normalized the whitespace;
+  \item we normalized the white space;
   \item we dropped documents shorter than 100 characters.
 \end{enumerate}
 
-These steps were performed having two objectives in mind: (i) dropping duplicates, after discarding noisy and irrelevant information; and (ii) reducing the number of different characters that could be found in the tweets, which adversely affects the main algorithm complexity (see further ...).
+These steps were performed having two objectives in mind: (i) dropping duplicates, after discarding noisy and irrelevant information; and (ii) reducing the number of different characters that could be found in the tweets. Indeed, a high number of different characters would force us to employ hash functions that adversely affect the execution time of the main algorithm (see Section~\ref{subsec:experiments:buckets}).
  
-\subsubsection{Pre-processing.} Different pre-processing pipelines were applied to the documents given as input to the main algorithm described in Section and to the neural network model described in Section.
+\subsubsection{Pre-processing.} Different pre-processing pipelines were applied to the documents given as input to the main algorithm described in Section~\ref{subsec:models:lsh} and to the neural network described in Section~\ref{subsec:models:transformer}.
 
-Concerning the documents given as input to the main algorithm, the filtering steps described above also directly affected the documents and, thusly, may be considered part of the pre-processing pipeline. However, the filtering steps were also used to drop the documents that, after those operations, turned out to be identical. On the contrary, the pre-processing steps described below were not involved in determining whether two documents should be considered identical. These pre-processing steps were:
+Concerning the documents given as input to the main algorithm, the filtering steps described above also directly affected the documents and, therefore, may be considered part of the pre-processing pipeline. However, the filtering steps were also used to drop the documents that, after those operations, turned out to be identical. On the contrary, the pre-processing steps described below were not involved in determining whether two documents should be considered identical. These pre-processing steps were:
 
 \begin{enumerate}
   \item using the \texttt{spacy} library\footnote{\url{https://spacy.io/}}, we replaced each token with the corresponding lemma, to increase the match between words like “invasion" and “invaded";
   \item we removed punctuation symbols that were introduced by the lemmatization;
-  \item we normalized the whitespace again.
+  \item we normalized the white space again.
 \end{enumerate}
 
-The documents given as input to the neural network model were not affected by the filtering steps, which, in this case, were used solely to drop duplicates. As a consequence, the only pre-processing steps were the following:
+The documents given as input to the neural network were not affected by the filtering steps, which, in this case, were used solely to drop duplicates. As a consequence, the only pre-processing steps were the following:
 
 \begin{enumerate}
   \item we removed URLs;
@@ -87,22 +87,22 @@ The documents given as input to the neural network model were not affected by th
   \item we replaced the ampersand with “and";
   \item we replaced special UNICODE characters with their ASCII counterparts, for instance “$\mathbb{R}$" with “R";
   \item we removed non-ASCII characters, except for cyrillic characters;
-  \item we normalized the whitespace.
+  \item we normalized the white space.
 \end{enumerate}
 
-We decided to perform a light pre-processing for the neural network model in order to leverage its ability to exploit the context of each word, which would have been hampered by removing punctuation and stop words or by lemmatizing the tokens.
+We decided to perform a light pre-processing for the neural network in order to leverage its ability to exploit the context of each word, which would have been hampered by removing punctuation and stop words or by lemmatizing the tokens.
 
 Finally, note that, while numbers might be considered noise in some contexts, here we decided to keep them. Indeed, in our context, numbers could be found in dates and military equipment (e.g., the Russian T-72 tank or the M982 Excalibur 155 mm shell) and could help in discriminating the documents.
 
 \section{Models}
 \label{sec:models}
 
-In this section we briefly describe the algorithm used to find similar documents (Section~\ref{subsec:models:lsh}) and the neural network model we used as a baseline to compare performances (Section~~\ref{subsec:models:transformer}). We also propose an example to motivate the comparison between the two models (Section~\ref{subsec:models:motivation}).
+In this section we briefly describe the algorithm used to find similar documents (Section~\ref{subsec:models:lsh}) and the neural network we used as a baseline to compare performances (Section~~\ref{subsec:models:transformer}). We also propose an example to motivate the comparison between the two models (Section~\ref{subsec:models:motivation}).
 
-\subsection{Locality-sensitive Hashing Algorithm}
+\subsection{Locality-Sensitive Hashing Algorithm}
 \label{subsec:models:lsh}
 
-In order to find the pairs of similar documents, we employed the algorithm described in~\cite{leskovec_2020}, which can scale up to massive datasets. This algorithm converts each document to a set of k-grams (shingles), builds a characteristic matrix and then a signature matrix by using hash functions, applies a locality-sensitive hashing (LSH) technique to find candidate similar pairs and, finally, checks the candidate pairs against the signature matrix to discard false positive pairs. Optionally, one could check the candidate pairs also against the characteristic matrix, if available.
+In order to find the pairs of similar documents, we employed the algorithm described in~\cite{leskovec_2020}, which can scale up to massive datasets. We assume the reader to be familiar with the algorithm and we provide here only a brief summary. The algorithm converts each document to a set of k-grams (shingles), builds a characteristic matrix and then a signature matrix by using hash functions, applies a locality-sensitive hashing (LSH) technique to find candidate similar pairs and, finally, checks the candidate pairs against the signature matrix to discard false positive pairs. Optionally, one could check the candidate pairs also against the characteristic matrix, if available.
 
 \subsubsection{Hash functions.} Concerning the implementation details, we first discuss the various hash functions exploited by the algorithm. To avoid keeping the shingles in main memory, the algorithm hashes each shingle to a bucket, in the form of an integer. The total number of buckets associated to the hash function has a significant impact on the execution time. We generated different hash functions by truncating the output of the SHA-256 hash function at varying lengths of bits. In this way, we could experiment with different numbers of buckets.  
 
@@ -112,31 +112,29 @@ The algorithm requires also hash functions that could map a row index to another
 \]
 where $x$ is a row number, $a$ and $b$ are random numbers smaller than the maximum row number and $c$ is a prime number higher than the maximum row number.
 
-Inside the LSH technique, to check whether two columns were equal, we hashed the string composed by the sequence of integers inside each column using the default \texttt{hash} function provided by Python. This allowed us compress a potentially huge array of numbers into a single number, thus saving main memory space. 
+Inside the LSH technique, to check whether two columns were equal, we hashed the string composed by the sequence of integers inside each column using the default \texttt{hash} function provided by Python. This allowed us to compress a potentially huge array of numbers into a single number, thus saving main memory space. 
 
-\subsubsection{Characteristic matrix.} In order to build the signature matrix, the algorithm also requires a characteristic matrix, where each column represents a document and each entry indicates whether or not a given shingle is contained in a given document. We store the characteristic matrix as a dictionary that maps each document index to its set of shingles. In this way, we do not waste memory to store the zeroes.
+\subsubsection{Characteristic matrix.} In order to build the signature matrix, the algorithm also requires a characteristic matrix, where each column represents a document and each entry indicates whether or not a given shingle is contained in a given document. We store the characteristic matrix as a dictionary that maps each document index to its set of shingles. In this way, we do not waste memory to store the null entries.
 
-\subsubsection{LSH.} Concerning the LSH technique, we found the number of bands for the signature matrix and the correlated number of rows in each band by using \texttt{scipy} to solve the system of equations
+\subsubsection{LSH.} Concerning the LSH technique, in order to find the number of bands for the signature matrix and the correlated number of rows in each band, we used \texttt{scipy} and solved the system of equations
 \begin{equation}
   \begin{cases}
     t = (\frac{1}{b})^\frac{1}{r}\\
     b \cdot r = n
   \end{cases}\,,
 \end{equation}
-where $t$ is a threshold on the required similarity between two documents to mark them as a candidate pair, $b$ is the number of bands, $r$ is the number of rows in each band and $n$ is the total number of rows of the signature matrix.
+where $t$ is a threshold on the required similarity between two documents, $b$ is the number of bands, $r$ is the number of rows in each band and $n$ is the total number of rows of the signature matrix.
 
-As noted before, we checked whether the columns were equal by hashing their representations as strings.
+\subsubsection{Scalability bottlenecks.} The implementation of the algorithm features two possible scalability bottlenecks. The first one concerns the characteristic matrix. Using 3-grams, 4-grams, 5-grams and 6-grams, each document contained on average 120-130 shingles. If we represented each shingle with a 32-bit integer, processing 10 million documents would require roughly 5 gigabytes of main memory ($\frac{1e7 \cdot 130 \cdot 32}{8e9} = 5.2$). Keeping the whole dataset (40 million documents) in main memory might prove challenging or even impossible. A solution could be to store the documents representations as sets of shingles in mass memory and read them one at a time when building the signature matrix. However, that would slow down an already time consuming operation, since we would have to cycle through the documents for each row of the characteristic matrix.
 
-\subsubsection{Scalability bottlenecks.} The implementation of the algorithm features two possible scalability bottlenecks. The first one concerns the characteristic matrix. Using 3-grams, 4-grams, 5-grams and 6-grams, each document contained on average 120-130 shingles. If we represented each shingle with a 32-bit integer, processing 10 million documents would require roughly 5 gigabytes of main memory ($\frac{1e7 \cdot 130 \cdot 32}{8e9} = 5.2$). Keeping the whole dataset (40 million documents) in main memory might prove challenging or even impossible. A solution could be to store the documents representations as sets of shingles in mass memory and read them one at a time when building the signature matrix. However, that would slow down an already time consuming operation, since we would have to cycle through the documents for each row of the characteristic matrix while building the signature matrix.
-
-The second bottleneck concerns the number of similar pairs. The lower the value for the threshold, the higher the number of similar pairs identified by the algorithm. When processing millions of documents, even a moderate threshold might saturate the main memory. The only possible solution would be to store the candidate pairs identified by the LSH algorithm on mass memory. This would happen within each band and, therefore, we would not be able to have unique pairs: the same pair might be identified and stored on mass memory in more than one band. This will result in redundant processing. 
+The second bottleneck concerns the number of similar pairs. The lower the value for the threshold, the higher the number of similar pairs identified by the algorithm. When processing millions of documents, even a moderate threshold might saturate the main memory. The only possible solution would be to store the candidate pairs identified by the LSH algorithm on mass memory. This would have to happen within each band of the signature matrix and, therefore, we would not be able to have unique pairs: the same pair might be identified and stored on mass memory in more than one band. This would result in redundant processing. 
 
 \subsection{Neural Network (Transformer)}
 \label{subsec:models:transformer}
 
-The dataset did not provide a ground truth against which we could compare our results. Therefore, we decided to use a state-of-the-art model in the field of natural language processing (NLP) to serve as a baseline in determining how similar two documents were. To this end, we opted to use MPNet~\cite{song_2020}, which is a neural network based on the revolutionary BERT Transformer~\cite{vaswani_2017, devlin-etal-2019-bert}. A characteristic of the Transformer architecture is the computation of attention weights, which boils down to learning the relative importance of each token inside a sentence. 
+The dataset did not provide a ground truth against which we could compare our results. Therefore, we decided to use a state-of-the-art model in the field of natural language processing (NLP) to serve as a baseline in determining how similar two documents were. To this end, we opted to use MPNet~\cite{song_2020}, which is a neural network based on the revolutionary BERT Transformer~\cite{vaswani_2017, devlin-etal-2019-bert}.
 
-A Transformer used to obtain word embeddings is similar to word2vec~\cite{mikolov-etal-2013-word2vec}, with one important difference. The difference is that word2vec produces static embeddings, which means that a given word will be mapped to the same vector regardless of its context. On the contrary, the Transformer produces contextualized embeddings, so that we will obtain a different vector for each different context (sentence) in which a given word appears. To give an example, the Transformer would generate different embeddings for the word “mouse" used with the meaning of animal or with the meaning of computer device, whereas word2vec would generate the same embedding.
+A Transformer used to obtain word embeddings is similar to word2vec~\cite{mikolov-etal-2013-word2vec}, with one important difference. The difference is that word2vec produces static embeddings, which means that a given word will be mapped to the same vector regardless of its context. On the contrary, the Transformer produces contextualized embeddings, so that we will obtain a different vector for each different context (sentence) in which a given word appears. To give an example, the Transformer would generate different embeddings for the word “mouse" used with the meaning of animal and with the meaning of computer device, whereas word2vec would generate the same embedding.
 
 We used the Transformer to obtain an embedding for each document. First, we extracted a word embedding for each word in a given document by using the last hidden layer of the model, which captures semantic features~\cite{laicher-etal-2021-explaining}. Afterwards, we computed the mean of the word embeddings of the document.
 
@@ -145,15 +143,15 @@ We used the Transformer to obtain an embedding for each document. First, we extr
 
 We motivate our decision to compare the LSH algorithm with a Transformer by showing an example. Consider the following three documents.
 \begin{enumerate}
-  \item I went to the bank to withdraw money and compensate the plaintiff for their losses.
-  \item The Russians are withdrawing from the banks of the Dnipro River after suffering heavy losses.
-  \item After the judgement, I had to use my debit card and pay the suer for the damages.
+  \item “I went to the bank to withdraw money and compensate the plaintiff for their losses".
+  \item “The Russians are withdrawing from the banks of the Dnipro River after suffering heavy losses".
+  \item “After the judgement, I had to use my debit card and pay the suer for the damages".
 \end{enumerate}
-We can see that the first and the third document are semantically related, despite the fact that they do not share many words in common. On the contrary, the first and the second document are not semantically related, but share words like “bank", “withdraw" and “losses".
+We can see that the first and the third document are semantically related, despite the fact that they do not share many words. On the contrary, the first and the second document are not semantically related, but share words like “bank", “withdraw" and “losses".
 
-We apply a light pre-processing on the documents, mainly consisting in removing punctuation and performing lemmatization, we extract 3-grams from the texts and then we compute the Jaccard similarity between each pair of documents. Recall that the LSH algorithm produces an estimation of the Jaccard similarity. After that, we compute the cosine similarity between the sentence embeddings extracted from the Transformer, without any pre-processing.
+We apply a light pre-processing on the documents, consisting in removing punctuation, applying lowercase, performing lemmatization and normalizing the white space. Then, we extract 3-grams and we compute the Jaccard similarity between each pair of documents. Recall that the LSH algorithm produces an estimation of the Jaccard similarity. After that, we compute the cosine similarity between the sentence embeddings extracted from the Transformer, without any pre-processing.
 
-The results are shown in Table~\ref{tab:models:comparison}. As expected, the Jaccard similarity identifies the first and second document as the most similar, whereas the Transformer correctly identifies the first and the third document as the most similar. This suggests that we could use the Transformer to check whether the pairs identified as similar by the LSH algorithm are indeed similar.
+The results are shown in Table~\ref{tab:models:comparison}. As expected, the Jaccard similarity identifies the first and second document as the most similar, whereas the Transformer correctly identifies the first and the third document as the most similar. This suggests that the LSH algorithm may not be able to adequately capture the semantic similarity between documents. Thus, we could use the Transformer to check whether the pairs identified as similar by the LSH algorithm are indeed similar.
 
 \begin{table}
   \caption{Similarity between each pair out of the three documents described in Section~\ref{subsec:models:motivation}, computed by Jaccard similarity on 3-grams and by the Transformer.}
@@ -162,6 +160,7 @@ The results are shown in Table~\ref{tab:models:comparison}. As expected, the Jac
   \begin{tabular}{lrrr}
       \toprule
       & \multicolumn{3}{c}{Similarity} \\
+      \cmidrule{2-4}
       Method & Pair (1,2) & Pair (1,3) & Pair (2,3) \\
       \midrule
       Jaccard Similarity & 0.185 & 0.000 & 0.023\\
@@ -173,9 +172,39 @@ The results are shown in Table~\ref{tab:models:comparison}. As expected, the Jac
 \section{Experiments}
 \label{sec:experiments}
 
-In this section we disclose and discuss our experiments on the LSH algorithm. These experiments concerned the growth of shingles and number of characters as we increased the number of documents (Section~\ref{subsec:experiments:shingles}); the effect of the number of buckets on the hash functions used to map shingles to integers (Section~\ref{subsec:experiments:buckets}); the effect of the threshold on the similarity between pairs (Section~\ref{subsec:experiments:threshold}); the effect of the number of hash functions used to permute the rows of the characteristic matrix (Section~\ref{subsec:experiments:hashes}); a final comparison between the LSH algorithm and the Transformer on 100,000 tweets (Section~\ref{subsec:experiments:100k}).
+In this section, after reviewing some of the metrics used for evaluation (Section~\ref{subsec:experiments:metrics}), we discuss our experiments on the LSH algorithm. These experiments concerned the growth of the number of different shingles and characters as we increased the number of documents (Section~\ref{subsec:experiments:shingles}); the effect of the number of buckets on the hash functions used to map shingles to integers (Section~\ref{subsec:experiments:buckets}); the effect of the threshold on the similarity between pairs (Section~\ref{subsec:experiments:threshold}); the effect of the number of hash functions used to permute the rows of the characteristic matrix (Section~\ref{subsec:experiments:hashes}); a final comparison between the LSH algorithm and the Transformer on 100,000 tweets (Section~\ref{subsec:experiments:100k}).
 
 All the experiments were carried out using the files covering the tweets from the 1$^{\text{st}}$ of April 2022 to the 7$^{\text{th}}$ of April 2022. We selected only the tweets in the English language. We refer to Section~\ref{subsec:dataset:preprocessing} for the filtering and pre-processing techniques adopted. The analyzed files contained around 2 million documents. After the filtering, only 221,615 documents remained. This confirms that the dataset is filled with almost identical or very short tweets. 
+
+\subsection{Metrics}
+\label{subsec:experiments:metrics}
+
+We define the following metrics: precision, recall, F1-score and mean absolute error (MAE). Within a massive dataset, the number of pairs of dissimilar documents would be preponderant. Therefore, accuracy would likely be very high regardless of the capabilities of the algorithm.
+For this reason, we did not consider accuracy. 
+
+In this context, TP is the number of true positive pairs, FP is the number of false positive pairs, and FN is the number of false negative pairs. Those quantities were obtained by computing the actual Jaccard similarity between the documents, by using the characteristic matrix. Afterwards, we checked if the Jaccard similarity was higher than the threshold.
+If the algorithm identified a pair as similar, but the Jaccard similarity did not exceed the threshold, we considered the pair as false positive. If the algorithm identified a pair as similar and the Jaccard similarity exceeded the threshold, we considered the pair as true positive. If the algorithm identified a pair as not similar, but the Jaccard similarity exceeded the threshold, we considered the pair as false negative.
+
+Precision is defined as 
+\[
+  \text{Precision} = \frac{\text{TP}}{\text{TP} + \text{FP}}\,.
+\]
+
+Recall is defined as
+\[
+  \text{Recall} = \frac{\text{TP}}{\text{TP} + \text{FN}}\,.
+\]
+
+F1-score is defined as
+\[
+  \text{F1-score} = \frac{\text{TP}}{\text{TP} + \frac{1}{2}(\text{FP} + \text{FN})}\,.
+\]
+
+MAE is defined as
+\[
+  \text{MAE} = \frac{1}{N}\sum_{i=1}^N \lvert y_i - x_i \rvert \,,
+\]
+where $x$ and $y$ are respectively the similarity estimated by the algorithm and the Jaccard similarity computed on the characteristic matrix. Recall that the output of the algorithm is a set of pairs of documents identified as similar. Thus, the algorithm does not provide a similarity value for all the pairs, but only for a subset. This being the case, $N$ is not the total number of pairs, but the number of pairs identified as similar by the algorithm. 
 
 \subsection{Shingles and Characters Growth}
 \label{subsec:experiments:shingles}
@@ -194,100 +223,86 @@ All the experiments were carried out using the files covering the tweets from th
   \label{fig:experiments:shingles_growth}
 \end{figure}
 
-In this first experiment we wanted to gauge how the number of shingles (or k-grams) and different characters within the whole corpus varied as the number of documents increased. 
+In this first experiment we wanted to gauge how the number of different shingles (or k-grams) and characters within the whole corpus varied as the number of documents increased.
 
-In Figure~\ref{fig:experiments:char_growth} we can see how the number of characters grows as the number of documents increases. In particular, we can see how from 100,000 documents onwards the number of characters is stable at around 65 characters (68, to be precise). This is useful to get a hint on the appropriate k-gram with respect to the number of buckets of the hash function that maps k-grams to integers. For instance, given that $68^3 = 314,432$, we can infer that, if we used 3-grams, we would need a hash function with approximately 300,000 buckets.
+In Figure~\ref{fig:experiments:char_growth} we can see how the number of characters grew as the number of documents increased. In particular, we can see how, from 100,000 documents onwards, the number of characters was stable at around 65 characters (68, to be precise). This could be useful to get a hint on the appropriate k-gram with respect to the number of buckets of the hash function that maps k-grams to integers. For instance, given that $68^3 = 314,432$, we can infer that, if we used 3-grams, we would need a hash function with approximately 300,000 buckets.
 
-Working with characters we can get an estimate on the number of buckets that we would need. However, it is unlikely that all the possible shingles will appear in practice. To this end, we also explored how the actual number of different shingles grows as the number of documents increases.
+Working with characters we can get an estimate on the number of buckets that we would need. However, it is unlikely that all the possible shingles will appear in practice. To this end, we also explored how the actual number of different shingles grew as the number of documents increased.
 
-In Figure~\ref{fig:experiments:shingles_growth} we can see how the number of different shingles grows as the number of documents increases. It is not surprising to see that, with k-grams having a higher value of k, the number of shingles grows more steeply. We can also see, however, that this growth is approximately logarithmic in shape and stabilizes quickly for low values of k. Indeed, for k equal to 3 and 4, most of the shingles have already been found at 50,000 documents. To be precise, at 50,000 documents we have 21,580 shingles with 3-grams and 111,643 shingles with 4-grams. For 3-grams, a hash function with buckets of at least 15 bits would be enough ($2^{15} = 32,768$ buckets). For 4-grams, we would need at least 17 bits to have a fair chance at avoiding collisions ($2^{17} = 131,072$ buckets).  
+In Figure~\ref{fig:experiments:shingles_growth} we can see how the number of different shingles grew as the number of documents increased. It is not surprising to see that, with k-grams having a higher value of k, the number of shingles grew more steeply. We can also see, however, that this growth was approximately logarithmic in shape and stabilized quickly for low values of k. Indeed, for k equal to 3 and 4, most of the shingles had already been found at 50,000 documents. To be precise, at 50,000 documents we had 21,580 shingles with 3-grams and 111,643 shingles with 4-grams. Accordingly, for 3-grams, a hash function with buckets of at least 15 bits would be enough ($2^{15} = 32,768$ buckets). For 4-grams, we would need at least 17 bits to have a fair chance at avoiding collisions ($2^{17} = 131,072$ buckets).
 
+% The following experiments will concern mainly 3-grams, 4-grams and 5-grams. Recall that a suitable value of k should give a low probability of finding a given shingle inside a document. On this account, we remark that even with 3-grams the probability of finding a given shingle inside a document would be low. An upper bound on the total number of different shingles in a document is the number of characters in that document. For tweets, that would be 280 characters. Considering 68 possible different characters, the total number of different shingles would be $68^3 = 314,432$. So, at most, the probability of finding a given shingle would be $\frac{280}{68^3} \approx 0.0008$.
 
 \subsection{Number of Buckets}
 \label{subsec:experiments:buckets}
 
 In this experiment we wanted to see how increasing the number of bits, and thus the number of buckets, of the hash function that maps k-grams to integers affected various metrics. The experiment was carried out with a fixed threshold of 0.1, 100 hash functions for the permutations of the rows and a corpus of 100 documents.  
 
-The first metric we examined was precision, defined as 
-\[
-  \text{Precision} = \frac{\text{TP}}{\text{TP} + \text{FP}}\,,
-\]
-where $\text{TP}$ is the number of true positives and $\text{FP}$ is the number of false positives. TP and FP are obtained by computing the actual Jaccard similarity on the pairs of documents identified as similar by the algorithm. This was done using the characteristic matrix. Afterwards, we checked if the Jaccard similarity was indeed higher than the threshold. If the Jaccard similarity was higher than the threshold, we considered the pair a true positive, otherwise we considered the pair a false positive.
-
-The second metric we examined was the mean absolute error (MAE) between the similarity estimated by the algorithm and the actual Jaccard similarity. MAE is defined as
-\[
-  \text{MAE} = \frac{1}{N}\sum_{i=1}^N \lvert y_i - x_i \rvert \,,
-\]
-where $x$ and $y$ are the predictions and ground truth values.
-
-As third metric, we examined how the number of bits affected the time of execution.
-
 The results are shown in Tables~\ref{tab:experiments:buckets_k3}, \ref{tab:experiments:buckets_k4} and \ref{tab:experiments:buckets_k5} for 3-grams, 4-grams and 5-grams, respectively. We can formulate the following observations.
 
 \begin{itemize}
-  \item Using a higher number of bits did not yield a better result. Indeed, we can see that with 3-grams 12 bits yielded the best result, while with 4-grams 12 bits yielded a better result than 22 bits. Although the corpus was limited to 100 documents, this might still suggest that collisions have only a mild impact on the performance.
-  \item Across all the different numbers of bits, precision decreased as the the value of k in k-grams increased. 
-  \item No significant pattern was discernible for MAE, either considering the number of bits or the different k-grams.
+  \item Using a higher number of bits did not always yield a better result. For instance, we can see that with 3-grams 12 bits yielded the best F1-score.  Although the corpus was limited to 100 documents, this might still suggest that collisions have only a mild impact on the performance.
+  \item Across all the different numbers of bits, 3-grams obtained high values of F1-score most consistently. 
   \item The higher the value of k in k-grams, the lower the number of pairs estimated as similar.
-  \item Increasing the number of bits raised the execution time. With 22 bits, processing 100 documents took roughly 29 minutes. This might make working with massive datasets prohibitive from the perspective of execution time. Note also that, for low values of bits, most of the time was spent reading the files.  
+  \item Increasing the number of bits raised the execution time. With 22 bits, processing 100 documents took roughly 25 minutes. Coupled with a huge number of documents, this might make working with a high number of buckets prohibitive from the perspective of execution time.  
 \end{itemize}
 
 \begin{table}
-  \caption{Effects of the increase in the number of bits for the hash function that maps k-grams to integers when k is equal to 3. We highlighted in bold the best results for precision and mean absolute error (MAE).}
+  \caption{Effects of the increase in the number of bits for the hash function that maps k-grams to integers when k is equal to 3. We highlighted in bold the best results.}
   \label{tab:experiments:buckets_k3}
   \centering
-  \begin{tabular}{lccccc}
+  \begin{tabular}{lcccccc}
     \toprule
-    {} &    True Positive &   False Positive &  Precision &    MAE & Time Delta \\
-    Hash Bits &       &      &            &        &            \\
+    {} &  Pairs No. &  Recall &  Precision &  F1-Score &    MAE & Time Delta \\
+    Hash Bits &            &         &            &           &        &            \\
     \midrule
-    12        &  1289 &  560 &      \textbf{0.697} &  0.021 &    0:02:06 \\
-    14        &   945 &  738 &      0.561 &  0.023 &    0:02:11 \\
-    16        &   705 &  328 &      0.682 &  \textbf{0.018} &    0:02:28 \\
-    18        &   722 &  374 &      0.659 &  0.020 &    0:03:45 \\
-    19        &   767 &  500 &      0.605 &  0.019 &    0:05:27 \\
-    20        &   779 &  413 &      0.654 &  0.019 &    0:08:50 \\
-    22        &   713 &  457 &      0.609 &  0.020 &    0:28:55 \\
-    \bottomrule
-  \end{tabular}
-\end{table}
-
-\begin{table}
-  \caption{Effects of the increase in the number of bits for the hash function that maps k-grams to integers when k is equal to 4. We highlighted in bold the best results for precision and mean absolute error (MAE).}
-  \label{tab:experiments:buckets_k4}
-  \centering
-  \begin{tabular}{lccccc}
-    \toprule
-    {} &  True Positive &  False Positive &  Precision &    MAE & Time Delta \\
-    Hash Bits &                &                 &            &        &            \\
-    \midrule
-    12        &            131 &             256 &      0.339 &  0.024 &    0:02:09 \\
-    14        &             65 &             130 &      0.333 &  0.022 &    0:02:12 \\
-    16        &             66 &             140 &      0.320 &  0.024 &    0:02:29 \\
-    18        &             52 &             121 &      0.301 &  \textbf{0.018} &    0:03:41 \\
-    19        &             36 &              41 &      \textbf{0.468} &  \textbf{0.018} &    0:05:26 \\
-    20        &             46 &              56 &      0.451 &  \textbf{0.018} &    0:08:41 \\
-    22        &             69 &             245 &      0.220 &  0.021 &    0:29:08 \\
+    12        &       2166 &   0.775 &      \textbf{0.678} &     \textbf{0.723} &  0.025 &    0:00:04 \\
+    14        &       2008 &   0.823 &      0.569 &     0.673 &  0.029 &    0:00:08 \\
+    16        &       1761 &   0.815 &      0.579 &     0.677 &  \textbf{0.023} &    0:00:24 \\
+    18        &        995 &   0.525 &      0.634 &     0.574 &  \textbf{0.023} &    0:01:29 \\
+    19        &       1564 &   0.730 &      0.559 &     0.633 &  0.030 &    0:03:02 \\
+    20        &       2108 &   \textbf{0.866} &      0.492 &     0.628 &  0.033 &    0:05:53 \\
+    22        &       1125 &   0.594 &      0.632 &     0.612 &  \textbf{0.023} &    0:23:25 \\
     \bottomrule
     \end{tabular}
 \end{table}
 
 \begin{table}
-  \caption{Effects of the increase in the number of bits for the hash function that maps k-grams to integers when k is equal to 5. We highlighted in bold the best results for precision and mean absolute error (MAE).}
+  \caption{Effects of the increase in the number of bits for the hash function that maps k-grams to integers when k is equal to 4. We highlighted in bold the best results.}
+  \label{tab:experiments:buckets_k4}
+  \centering
+  \begin{tabular}{lcccccc}
+    \toprule
+    {} &  Pairs No. &  Recall &  Precision &  F1-Score &    MAE & Time Delta \\
+    Hash Bits &            &         &            &           &        &            \\
+    \midrule
+    12        &        404 &   0.656 &      0.317 &     0.427 &  0.030 &    0:00:03 \\
+    14        &        187 &   0.598 &      0.326 &     0.422 &  0.030 &    0:00:07 \\
+    16        &        237 &   0.820 &      0.308 &     0.448 &  0.031 &    0:00:24 \\
+    18        &        245 &   0.782 &      0.278 &     0.410 &  0.032 &    0:01:32 \\
+    19        &        353 &   \textbf{0.828} &      0.204 &     0.327 &  0.039 &    0:03:06 \\
+    20        &        348 &   0.690 &      0.172 &     0.276 &  0.039 &    0:06:37 \\
+    22        &        191 &   0.747 &      \textbf{0.340} &     \textbf{0.468} &  \textbf{0.029} &    0:23:55 \\
+    \bottomrule
+    \end{tabular}
+\end{table}
+
+\begin{table}
+  \caption{Effects of the increase in the number of bits for the hash function that maps k-grams to integers when k is equal to 5. We highlighted in bold the best results.}
   \label{tab:experiments:buckets_k5}
   \centering
-  \begin{tabular}{lccccc}
+  \begin{tabular}{lcccccc}
     \toprule
-    {} &  True Positive &  False Positive &  Precision &    MAE & Time Delta \\
-    Hash Bits &                &                 &            &        &            \\
+    {} &  Pairs No. &  Recall &  Precision &  F1-Score &    MAE & Time Delta \\
+    Hash Bits &            &         &            &           &        &            \\
     \midrule
-    12        &             54 &             187 &      0.224 &  0.023 &    0:02:09 \\
-    14        &             32 &             165 &      0.162 &  0.021 &    0:02:12 \\
-    16        &             29 &              26 &      \textbf{0.527} &  0.021 &    0:02:31 \\
-    18        &             23 &              82 &      0.219 &  \textbf{0.019} &    0:03:47 \\
-    19        &             25 &             151 &      0.142 &  0.034 &    0:05:28 \\
-    20        &             31 &              76 &      0.290 &  0.021 &    0:08:44 \\
-    22        &             18 &              24 &      0.429 &  0.021 &    0:29:18 \\
+    12        &        206 &   \textbf{0.750} &      0.277 &     0.404 &  0.035 &    0:00:03 \\
+    14        &         66 &   0.581 &      0.379 &     0.459 &  0.023 &    0:00:07 \\
+    16        &         79 &   0.703 &      0.329 &     0.448 &  0.034 &    0:00:29 \\
+    18        &         64 &   0.714 &      0.391 &     0.505 &  0.034 &    0:01:31 \\
+    19        &         23 &   0.457 &      \textbf{0.696} &     0.552 &  \textbf{0.022} &    0:03:05 \\
+    20        &         31 &   0.600 &      0.677 &     \textbf{0.636} &  0.026 &    0:05:51 \\
+    22        &         52 &   0.571 &      0.385 &     0.460 &  0.029 &    0:23:42 \\
     \bottomrule
     \end{tabular}
 \end{table}
@@ -295,72 +310,72 @@ The results are shown in Tables~\ref{tab:experiments:buckets_k3}, \ref{tab:exper
 \subsection{Threshold}
 \label{subsec:experiments:threshold}
 
-In this experiment we wanted to see how the value of the threshold affected the predictions, considering precision and MAE as metrics. The experiment was carried out with a 16 bits hash function for the mapping between shingles and integers, 100 hash functions for the permutations of the rows and a corpus of 100 documents. Note that, as the 100 hash functions are generated randomly, the results might be slightly different from the ones obtained in the previous experiment, which was carried out with a threshold of 0.1.
+In this experiment we wanted to see how the value of the threshold affected the predictions. The experiment was carried out with a 16 bits hash function for the mapping between shingles and integers, 100 hash functions for the permutations of the rows and a corpus of 100 documents.
 
 The results are shown in Tables~\ref{tab:experiments:threshold_k3}, \ref{tab:experiments:threshold_k4} and \ref{tab:experiments:threshold_k5} for 3-grams, 4-grams and 5-grams, respectively. We can formulate the following observations.
 
 \begin{itemize}
-  \item Above a certain threshold, the algorithm reached a perfect precision for all the k-grams. Below that threshold, however, increasing the threshold did not always increase the precision.
-  \item No clear pattern was discernible for MAE.
-  \item Increasing the threshold decreased the number of estimated similar pairs, as expected. However, this effect was stronger for k-grams with higher values of k. 
+  \item Above a certain threshold, the algorithm reached a perfect F1-score for all the k-grams. In general, the algorithm behaved better when the threshold was either very low or very high. This is reasonable, since those are the easiest cases: when almost all pairs are similar or when only almost identical documents are similar.
+  \item Increasing the threshold decreased the number of estimated similar pairs, as expected. However, this effect was stronger for k-grams with higher values of k.
+  \item MAE got worse as the threshold increased. This could be attributed to the lower number of estimated similar pairs. 
 \end{itemize}
 
 \begin{table}
-  \caption{Effects of the increase in the threshold value when working with 3-grams. We highlighted in bold the best results for precision and mean absolute error (MAE).}
+  \caption{Effects of the increase in the threshold value when working with 3-grams. We highlighted in bold the best results.}
   \label{tab:experiments:threshold_k3}
   \centering
-  \begin{tabular}{lcccc}
+  \begin{tabular}{lccccc}
     \toprule
-    {} &  True Positive &  False Positive &  Precision &    MAE \\
-    Threshold &                &                 &            &        \\
+    {} &  Pairs No. &  Recall &  Precision &  F1-Score &    MAE \\
+    Threshold &            &         &            &           &        \\
     \midrule
-    0.05      &           3740 &             263 &      0.934 &  \textbf{0.019} \\
-    0.10      &            924 &             643 &      0.590 &  0.021 \\
-    0.15      &             79 &             449 &      0.150 &  0.036 \\
-    0.20      &              4 &              85 &      0.045 &  0.035 \\
-    0.25      &              2 &               3 &      0.400 &  0.052 \\
-    0.30      &              1 &               1 &      0.500 &  0.020 \\
-    0.50      &              1 &               0 &      \textbf{1.000} &  0.060 \\
+    0.05      &       4067 &   0.924 &      0.941 &     0.932 &  \textbf{0.018} \\
+    0.10      &       1761 &   0.815 &      0.579 &     0.677 &  0.023 \\
+    0.15      &        242 &   0.582 &      0.236 &     0.335 &  0.037 \\
+    0.20      &         23 &   0.750 &      0.261 &     0.387 &  0.043 \\
+    0.25      &          4 &   \textbf{1.000} &      0.750 &     0.857 &  0.032 \\
+    0.30      &          1 &   \textbf{1.000} &      \textbf{1.000} &     \textbf{1.000} &  0.070 \\
+    0.50      &          1 &   \textbf{1.000} &      \textbf{1.000} &     \textbf{1.000} &  0.070 \\
     \bottomrule
     \end{tabular}
 \end{table}
 
 \begin{table}
-  \caption{Effects of the increase in the threshold value when working with 4-grams. We highlighted in bold the best results for precision and mean absolute error (MAE).}
+  \caption{Effects of the increase in the threshold value when working with 4-grams. We highlighted in bold the best results.}
   \label{tab:experiments:threshold_k4}
   \centering
-  \begin{tabular}{lcccc}
+  \begin{tabular}{lrrrrr}
     \toprule
-    {} &  True Positive &  False Positive &  Precision &    MAE \\
-    Threshold &                &                 &            &        \\
+    {} &  Pairs No. &  Recall &  Precision &  F1-Score &    MAE \\
+    Threshold &            &         &            &           &        \\
     \midrule
-    0.05      &           1255 &             838 &      0.600 &  0.019 \\
-    0.10      &             76 &             189 &      0.287 &  0.021 \\
-    0.15     &              7 &              10 &      0.412 &  0.021 \\
-    0.20      &              3 &               2 &      0.600 &  \textbf{0.015} \\
-    0.25      &              1 &               1 &      0.500 &  0.102 \\
-    0.30      &              1 &               0 &      \textbf{1.000} &  0.028 \\
-    0.50      &              1 &               0 &      \textbf{1.000} &  0.058 \\
+    0.05      &       1819 &   0.791 &      0.650 &     0.714 &  \textbf{0.016} \\
+    0.10      &        237 &   0.820 &      0.308 &     0.448 &  0.031 \\
+    0.15      &         25 &   0.875 &      0.280 &     0.424 &  0.050 \\
+    0.20      &          8 &   \textbf{1.000} &      0.375 &     0.545 &  0.058 \\
+    0.25      &          2 &   \textbf{1.000} &      0.500 &     0.667 &  0.071 \\
+    0.30      &          1 &   \textbf{1.000} &      \textbf{1.000} &     \textbf{1.000} &  0.108 \\
+    0.50      &          1 &   \textbf{1.000} &      \textbf{1.000} &     \textbf{1.000} &  0.108 \\
     \bottomrule
     \end{tabular}
 \end{table}
 
 \begin{table}
-  \caption{Effects of the increase in the threshold value when working with 5-grams. We highlighted in bold the best results for precision and mean absolute error (MAE).}
+  \caption{Effects of the increase in the threshold value when working with 5-grams. We highlighted in bold the best results.}
   \label{tab:experiments:threshold_k5}
   \centering
-  \begin{tabular}{lcccc}
+  \begin{tabular}{lccccc}
     \toprule
-    {} &  True Positive &  False Positive &  Precision &    MAE \\
-    Threshold &                &                 &            &        \\
+    {} &  Pairs No. &  Recall &  Precision &  F1-Score &    MAE \\
+    Threshold &            &         &            &           &        \\
     \midrule
-    0.05      &            423 &             540 &      0.439 &  0.018 \\
-    0.10      &             19 &              22 &      0.463 &  0.017 \\
-    0.15      &              3 &               3 &      0.500 &  0.012 \\
-    0.20      &              1 &               0 &      \textbf{1.000} &  0.111 \\
-    0.25      &              1 &               0 &      \textbf{1.000} &  \textbf{0.011} \\
-    0.30      &              1 &               0 &      \textbf{1.000} &  0.041 \\
-    0.50      &              1 &               0 &      \textbf{1.000} &  0.021 \\
+    0.05      &       1035 &   0.808 &      0.414 &     0.548 &  \textbf{0.019} \\
+    0.10      &         79 &   0.703 &      0.329 &     0.448 &  0.034 \\
+    0.15      &         10 &   \textbf{1.000} &      0.300 &     0.462 &  0.052 \\
+    0.20      &          3 &   \textbf{1.000} &      0.333 &     0.500 &  0.060 \\
+    0.25      &          1 &   \textbf{1.000} &      \textbf{1.000} &     \textbf{1.000} &  0.111 \\
+    0.30      &          1 &   \textbf{1.000} &      \textbf{1.000} &     \textbf{1.000} &  0.111 \\
+    0.50      &          1 &   \textbf{1.000} &      \textbf{1.000} &     \textbf{1.000} &  0.111 \\
     \bottomrule
     \end{tabular}
 \end{table}
@@ -368,67 +383,67 @@ The results are shown in Tables~\ref{tab:experiments:threshold_k3}, \ref{tab:exp
 \subsection{Number of Hash Functions}
 \label{subsec:experiments:hashes}
 
-In this experiment we wanted to verify how the number of hash functions used to perform permutations affected precision, MAE and execution time. The experiment was carried out with a 16 bits hash function for the mapping between shingles and integers, a threshold value of 0.1 and a corpus of 100 documents.
+In this experiment we wanted to verify how the number of hash functions used to perform permutations affected the algorithm. The experiment was carried out with a 16 bits hash function for the mapping between shingles and integers, a threshold value of 0.1 and a corpus of 100 documents.
 
 The results are shown in Tables~\ref{tab:experiments:hashes_k3}, \ref{tab:experiments:hashes_k4} and \ref{tab:experiments:hashes_k5} for 3-grams, 4-grams and 5-grams, respectively. We can formulate the following observations.
 
 \begin{itemize}
-  \item Increasing the number of hash functions decreased the number of pairs estimated as similar and increased the precision. The effect is similar to what we observed in the threshold experiment, but the meaning is entirely different. Since the threshold here is fixed, when we predict a lower number of true positive pairs we are effectively increasing the number of false negatives. For this reason, 200 hash functions seem to strike a good compromise between precision and the preservation of true positives.
-  \item No clear pattern is discernible for MAE.
-  \item The increase in execution time, when working with a higher number of hash functions, is negligible.
+  \item Increasing the number of hash functions decreased the number of pairs estimated as similar and increased the precision. The effect is similar to what we observed in the threshold experiment, but with a significant difference. Here we can see how recall got progressively worse as we increased the number of hash functions. The takeaway is not to increase drastically the number of hash functions and not to rely on the sole precision to evaluate the algorithm. This will be important for our final experiment, because in that context we will be unable to measure recall and F1-score due to the huge number of documents. 
+  \item 200 hash functions seemed to strike a good compromise between precision and recall across all the different k-grams.
+  \item The increase in execution time, when working with a higher number of hash functions, was negligible.
 \end{itemize}
 
 
 \begin{table}
-  \caption{Effects of the increase in the number of hash functions used to perform permutations when working with 3-grams. We highlighted in bold the best results for precision and mean absolute error (MAE).}
+  \caption{Effects of the increase in the number of hash functions used to perform permutations when working with 3-grams. We highlighted in bold the best results.}
   \label{tab:experiments:hashes_k3}
   \centering
-  \begin{tabular}{lccccc}
+  \begin{tabular}{lcccccc}
     \toprule
-    {} &  True Positive &  False Positive &  Precision &    MAE & Time Delta \\
-    Hash No. &                &                 &            &        &            \\
+    {} &  Pairs No. &  Recall &  Precision &  F1-Score &    MAE & Time Delta \\
+    Hash No. &            &         &            &           &        &            \\
     \midrule
-    20         &            868 &            1338 &      0.393 &  0.052 &    0:02:25 \\
-    100        &           1183 &            1409 &      0.456 &  0.033 &    0:02:27 \\
-    200        &            812 &             370 &      0.687 &  0.015 &    0:02:33 \\
-    300        &             70 &               5 &      \textbf{0.933} &  \textbf{0.014} &    0:03:48 \\
-    500        &              0 &               0 &      0.000 &  0.000 &    0:02:47 \\
+    20       &       1793 &   0.577 &      0.403 &     0.474 &  0.045 &    0:00:19 \\
+    100      &       1761 &   \textbf{0.815} &      0.579 &     \textbf{0.677} &  0.023 &    0:00:24 \\
+    200      &       1468 &   0.725 &      0.619 &     0.668 &  0.023 &    0:00:31 \\
+    300      &         74 &   0.046 &      0.770 &     0.086 &  \textbf{0.019} &    0:00:36 \\
+    500      &          1 &   0.001 &      \textbf{1.000} &     0.002 &  0.032 &    0:00:45 \\
     \bottomrule
     \end{tabular}
 \end{table}
 
 \begin{table}
-  \caption{Effects of the increase in the number of hash functions used to perform permutations when working with 4-grams. We highlighted in bold the best results for precision and mean absolute error (MAE).}
+  \caption{Effects of the increase in the number of hash functions used to perform permutations when working with 4-grams. We highlighted in bold the best results.}
   \label{tab:experiments:hashes_k4}
   \centering
-  \begin{tabular}{lccccc}
+  \begin{tabular}{lcccccc}
     \toprule
-    {} &  True Positive &  False Positive &  Precision &    MAE & Time Delta \\
-    Hash No. &                &                 &            &        &            \\
+    {} &  Pairs No. &  Recall &  Precision &  F1-Score &    MAE & Time Delta \\
+    Hash No. &            &         &            &           &        &            \\
     \midrule
-    20         &             32 &             317 &      0.092 &  0.049 &    0:02:27 \\
-    100        &             55 &              94 &      0.369 &  0.022 &    0:02:30 \\
-    200        &             52 &              32 &      \textbf{0.619} &  \textbf{0.016} &    0:02:35 \\
-    300        &              6 &               3 &      0.667 &  0.018 &    0:02:47 \\
-    500        &              0 &               0 &      0.000 &  0.000 &    0:02:50 \\
+    20       &        951 &   0.798 &      0.075 &     0.137 &  0.057 &    0:00:21 \\
+    100      &        237 &   \textbf{0.820} &      0.308 &     0.448 &  0.031 &    0:00:25 \\
+    200      &        137 &   0.775 &      0.504 &     \textbf{0.611} &  0.020 &    0:00:34 \\
+    300      &         17 &   0.169 &      \textbf{0.882} &     0.283 &  \textbf{0.014} &    0:00:40 \\
+    500      &          0 &   0.000 &      0.000 &     0.000 &  0.000 &    0:00:45 \\
     \bottomrule
     \end{tabular}
 \end{table}
 
 \begin{table}
-  \caption{Effects of the increase in the number of hash functions used to perform permutations when working with 5-grams. We highlighted in bold the best results for precision and mean absolute error (MAE).}
+  \caption{Effects of the increase in the number of hash functions used to perform permutations when working with 5-grams. We highlighted in bold the best results.}
   \label{tab:experiments:hashes_k5}
   \centering
-  \begin{tabular}{lccccc}
+  \begin{tabular}{lcccccc}
     \toprule
-    {} &  True Positive &  False Positive &  Precision &    MAE & Time Delta \\
-    Hash No. &                &                 &            &        &            \\
+    {} &  Pairs No. &  Recall &  Precision &  F1-Score &    MAE & Time Delta \\
+    Hash No. &            &         &            &           &        &            \\
     \midrule
-    20         &             25 &             529 &      0.045 &  0.044 &    0:02:30 \\
-    100        &             22 &              48 &      0.314 &  \textbf{0.018} &    0:02:31 \\
-    200        &             24 &              27 &      0.471 &  \textbf{0.018} &    0:02:43 \\
-    300        &              1 &               0 &      \textbf{1.000} &  0.028 &    0:02:54 \\
-    500        &              1 &               0 &      \textbf{1.000} &  0.027 &    0:02:55 \\
+    20       &        772 &   \textbf{0.703} &      0.034 &     0.064 &  0.068 &    0:00:19 \\
+    100      &         79 &   \textbf{0.703} &      0.329 &     0.448 &  0.034 &    0:00:25 \\
+    200      &         36 &   0.514 &      0.528 &     \textbf{0.521} &  \textbf{0.030} &    0:00:29 \\
+    300      &          3 &   0.081 &      \textbf{1.000} &     0.150 &  0.043 &    0:00:33 \\
+    500      &          0 &   0.000 &      0.000 &     0.000 &  0.000 &    0:00:43 \\
     \bottomrule
     \end{tabular}
 \end{table}
@@ -436,114 +451,60 @@ The results are shown in Tables~\ref{tab:experiments:hashes_k3}, \ref{tab:experi
 \subsection{Similarity between 100,000 Tweets}
 \label{subsec:experiments:100k}
 
-For this last experiment, we compared the results of three different configurations of algorithm hyper-parameters against the Transformer. The Transformer would not be able to compute the pairwise similarity between each pair of documents in a massive dataset. That would require an unreasonable amount of time. As a consequence, we used the Transformer to compute the similarity only between the pairs selected by the LSH algorithm. After that, we compared the rank-order correlation between the similarities computed by the two models using Kendall's Tau and Spearman's Rho.
+For this last experiment, we compared the results of the algorithm with different configurations of hyper-parameters against the Transformer. We used the Transformer to compute the similarity only between the pairs selected by the LSH algorithm. After that, we compared the rank-order correlation between the similarities computed by the two models using Kendall's Tau and Spearman's Rho. Both Kendall's Tau and Spearman's Rho range from -1 to +1, where -1 means strong disagreement, 0 means no correlation and +1 means strong agreement. We also considered Precision and MAE, as defined in Section~\ref{subsec:experiments:metrics}. We forwent recall and F1-score due to the high number of documents.
 
+The results are shown in Table~\ref{tab:experiments:d100k}. We can formulate the following observations.
 
-Results were still acceptable and required much less time
+\begin{itemize}
+  \item The strongest correlations were obtained by using 3-grams, with 4-grams being a close second.
+  \item Surprisingly, even with 12-bits hash functions the algorithm achieved a good performance. This supports our hypothesis that collisions have a limited impact on the performance. Additionally, with 12-bits hash functions the algorithm is able to churn out results at a fast rate (around one hour for 100,000 documents).   
+  \item In general, the similarity values computed by the algorithm showed only a moderate positive correlation with the similarity values computed by the Transformer. Therefore, we can conclude that the pairs of documents estimated as similar by the algorithm may be lacking a semantic association.
+  \item Increasing both the threshold and the number of hash function on 3-grams deteriorated the performance of the algorithm.
+\end{itemize}
+
+In Table we provide an example of similar documents identified by the algorithm having the best Kendall's Tau correlation in Table~\ref{tab:experiments:d100k}.
+
+\begin{table}
+  \caption{Performance of the algorithm on a corpus of 100,000 documents. Kendall's Tau and Spearman's Rho correlations used the Transformer described in Section~\ref{subsec:models:transformer} to compare the similarity values. We highlighted in bold the best results.}
+  \label{tab:experiments:d100k}
+  \centering
+  \begin{tabular}{llllccccc}
+  \toprule
+    &     &     &    &  Pairs No. &  Prec. &    MAE &  Kendall &  Spearman \\ K & T & Hash No. & Hash Bits &            &        &        &          &           \\
+  \midrule 
+  3 & 0.6 & 200 & 16 &     174941 &  0.956 &  0.023 &    0.229 &     0.323 \\  & 0.8 & 300 & 16 &      30917 &  0.903 &  0.015 &    0.076 &     0.109 \\  & 0.6 & 200 & 12 &     163221 &  0.967 &  0.020 &    0.230 &     0.319 \\ 5 & 0.6 & 200 & 16 &      94191 &  0.900 &  0.027 &    0.143 &     0.202 \\
+  \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}
+  \centering
+  \begin{tabular}{p{0.35\textwidth}@{\hspace{0.5cm}}p{0.35\textwidth}@{\hspace{0.5cm}}r}
+    \toprule
+     Doc. 1 & Doc. 2 & Similarity \\
+    \midrule
+    \#Russia’s President Vladimir \#Putin says he has signed a decree saying foreign buyers must pay in rubles for Russian gas from April 1, and contracts would be halted if these payments are not made.\url{https://t.co/IUBuHMgw4n} & \#Putin - "Unfriendly countries"  to start paying for Russian gas in rubles from April 1. Buyers not adhering to this will face gas contract termination by Russia. & 0.728 \\
+    \hline
+    'A lesson to the world \#Ukraine \#Germany, \#Britain, \#France They did not think of the people, but put idiots \#Biden first and its economy last, and their persistence is the height of stupidity. Therefore, they should be replaced by people who put their people first & @bho Russia has ignored its obligations and worked to present & 0.877 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 
 \section{Conclusions}
 \label{sec:conclusions}
 
-This work investigated the performance of the LSH algorithm described in Section~\ref{subsec:models:lsh} across different configurations of hyper-parameters. The algorithm proved to be effective at processing massive amounts of data and at properly estimating the Jaccard similarity between documents. The main pitfall of the algorithm is that Jaccard similarity on k-grams, as shown in Section~\ref{subsec:models:motivation}, might not capture semantic similarity between documents. Given the fact that the algorithm is built on top of a Boolean matrix, this issue may prove difficult to address. The reason is that we cannot exploit state-of-the-art word embeddings, unless we find a way to suitably encode them as sets.
+This work investigated the performance of the LSH algorithm described in Section~\ref{subsec:models:lsh} across different configurations of hyper-parameters. The algorithm proved to be effective at processing massive amounts of data and at properly estimating the Jaccard similarity between documents. This is the field in which the algorithm excels. A neural network would not be able to compute the pairwise similarity between each pair of documents in a massive dataset. That would require an unreasonable amount of time.
 
-Another critical aspect of the algorithm was the execution time, as mentioned in Section~\ref{subsec:experiments:buckets}. Building the signature matrix is an expensive operation, especially when using hash functions with a high number of buckets. In~\cite{leskovec_2020} there are suggestions on how to address this issue, at the cost of a coarser approximation of the Jaccard similarity.
+The main pitfall of the algorithm is that Jaccard similarity on k-grams, as shown in Section~\ref{subsec:models:motivation}, might not capture semantic similarity between documents. Given the fact that the algorithm is built on top of a Boolean characteristic matrix, this issue may prove difficult to address. The reason is that we cannot exploit state-of-the-art word embeddings, unless we find a way to suitably encode them as sets.
 
-As a further improvement, we could use a non-cryptographic hash function, instead of SHA-256, to generate hash functions with a variable number of buckets. That should speed up the execution.
+Another critical aspect of the algorithm was the execution time, at least with hash functions having a high number of buckets, as mentioned in Section~\ref{subsec:experiments:buckets}. Indeed, building the signature matrix is a very expensive operation when using those hash functions. In~\cite{leskovec_2020} there are suggestions on how to address this issue, at the cost of a coarser estimation of the Jaccard similarity.
 
-We could improve the algorithm by appending argument type constraints to the templates.
-
-MAE ON TP AND FP only, because algo doesn't have negatives similarity
-Meaningless accuracy because most pairs are true negative
+To further improve the execution time, we could also use a non-cryptographic hash function, instead of SHA-256, to generate hash functions with a variable number of buckets.
 
 PUT THE BADGE IN README
-
-INCONSISTENT RESULTS FOR THRESHOLD AND NUMBER OF BITS (3-GRAMS, thresh 0.1). Different hash though.
-the probability that any prefixed shingle will be contained in my document will be small $= 280 / 68^3$
-SET SEED WHEN CREATING HASH
-
-ADD ACCURACY?
-
-After feeding the documents to 
-
 Example of similar tweets
-Non-cryptographic function
 
-and which has been found to work well  
-Link a zip with checkpoints in the github
-To achieve this goal
-To this end
-
-, so we removed all URLs 
-beforehand. 
-We also removed URLs from tweets, since that differed only in hashtags or in  placed within the messages were not filtered, since . 
-
-might skew
-
-USE COMMA NOT PERIOD for NUMBERS
-
-each of which organized in fields providing information about the author
-each of which  
-
-foregoing
-
-Not actually deduped.
-
-Optimizer to find b and r
-Hash in LSH
-Last layer has most meaning
-TFIDF? Need to traverse the whole dataset to compute, taxing operation
-Two semantically different pipelines: to filter almost identical tweets, and the other.
-Punctuation and non-ascii removed later, because they might help the lemmatizer
-CHANGED PIPELINE (some differed for only some whitespace or for a capital letter (mint and MINT))
-
-Problem with low threshold, ends RAM with combinations
-As such, we decided to experiment with   
-The algorithm 
-used dictionary to store shingles 
-
-List of documents, each with its own correlation
-Check TP on final
-
-
-Being confronted with the problem of finding hash functions that could map to different numbers of buckets,
-
-filled to the brim of duplicates
-no clear takeaways
-more hashes more FN?
-
-k=3 with t0.4 over 1M pairs
-
-Strip again punctuation because some of the lemmas had punctuation symbols like \_ in them.
-
-Retweets and Quote tweets. We assume the reader to be familiar with Twitter.
-
-Check if quote or retweet with quote and retweet status (\url{https://developer.twitter.com/en/docs/twitter-api/v1/data-dictionary/object-model/tweet})
-
-Filtering for followers number doesn't seem useful. Many people retweet the smae things. maybe they made mistakes.
-
-fast spike increase in shingles at low documents
-
-used spacy 
-
-Cannot use spacy on dataframe, takes too much time
-
-crash with t.02, too many pairs
-with t=0.4 6346167 candidate pairs, actual 342671 
-
-We do not drop duplicates across different files, as that would require to load in main memory millions of documents. Plenty of retweets. Plenty of very short tweets that are identical after preprocessing /lemmatization. But filtering on string length isn't suitable due to the instrinsic short nature of tweets.  
-Sometimes only changed a handle or more, but removing handles might remove important parts (many quote zelensky with handle for instance).
-
-Removing handles might be somehow questionable... Si ma poi se tanto retweettano in altri file compare comunque.
-
-Dai, remove handle e testi più lunghi di tot...
-ONLY EN language
-Should have kept the retweet flag
-
-
-CHECK TP ON ACTUAL OUTPUT, AFTER THRESH CHECK
-
-Generate the combinations manually and add one at a time, to avoid ram problem?
 
 \bibliographystyle{splncs04}
 \bibliography{bibtex_entries}
