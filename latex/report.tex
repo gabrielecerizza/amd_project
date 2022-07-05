@@ -26,9 +26,9 @@
 \section*{Introduction}
 \label{sec:introduction}
 
-In this report we detail our findings in the study of an algorithm capable of identifying similar pairs of documents within massive datasets. The experiments illustrated hereinafter were carried out as part of a project for the Algorithms for Massive Datasets course of Università degli Studi di Milano.
+In this report we detail our findings in the study of an algorithm capable of identifying pairs of similar documents within massive datasets.
 
-In Section~\ref{sec:dataset} we illustrate the dataset and the adopted pre-processing techniques. In Section~\ref{sec:models} we briefly describe the algorithm and its implementation. We also outline the neural network used as comparison. In Section~\ref{sec:experiments} we comment our experiments. Finally, Section~\ref{sec:conclusions} contains our concluding remarks.
+In Section~\ref{sec:dataset} we illustrate the dataset and the adopted pre-processing techniques. In Section~\ref{sec:models} we briefly describe the algorithm and its implementation. We also outline the neural network used as comparison. In Section~\ref{sec:experiments} we provide comments on our experiments. Finally, Section~\ref{sec:conclusions} contains our concluding remarks.
 
 \section{Dataset}
 \label{sec:dataset}
@@ -38,13 +38,13 @@ In this section we provide an overview of the dataset (Section~\ref{subsec:datas
 \subsection{Description}
 \label{subsec:dataset:description}
 
-The dataset employed in our experiments was the “Ukraine Conflict Twitter Dataset" from Kaggle\footnote{\url{www.kaggle.com/datasets/bwandowando/ukraine-russian-crisis-twitter-dataset-1-2-m-rows}}, released under the CC BY-NC-SA 4.0 license. We assume the reader to be familiar with the terminology associated with the Twitter platform, including expressions such as “tweet", “retweet", “hashtag", and “handle"\footnote{We refer to \url{https://help.twitter.com/en/resources/glossary} for a quick review of the terminology.}.
+The dataset employed in our experiments was the “Ukraine Conflict Twitter Dataset" from Kaggle\footnote{\url{www.kaggle.com/datasets/bwandowando/ukraine-russian-crisis-twitter-dataset-1-2-m-rows}}, released under the CC BY-NC-SA 4.0 license. We assume the reader to be familiar with the terminology associated with Twitter, including expressions such as “tweet", “retweet", “hashtag", and “handle"\footnote{We refer to \url{https://help.twitter.com/en/resources/glossary} for a quick review of the terminology.}.
 
-This dataset boasts a total of over 40 million tweets concerning the conflict between Russia and Ukraine, which broke out on the 24$^{\text{th}}$ of February 2022. Those tweets were collected daily by monitoring hashtags. The dataset was first published on the 27$^{\text{th}}$ of February 2022. In the remainder of this report, we will refer to the version 127 of the dataset, downloaded on the 19$^{\text{th}}$ of June 2022. 
+This dataset boasts over 40 million tweets concerning the conflict between Russia and Ukraine, which broke out on the 24$^{\text{th}}$ of February 2022. Those tweets were collected daily by monitoring hashtags. The dataset was first published on the 27$^{\text{th}}$ of February 2022. In the remainder of this report, we will refer to the version 127 of the dataset, downloaded on the 19$^{\text{th}}$ of June 2022. 
 
 The dataset comprises 109 compressed CSV files. For each sampled tweet, among others, we can find information concerning the author, the text, the hashtags, the language and the date of creation of the messages. We used the \texttt{text} field to extract each document and the \texttt{language} field to select only English documents. 
 
-It is worth noting that the naming of the files is not consistent, which hinders attempts to process the tweets chronologically.
+It is worth noting that the naming format of the files is not consistent. As a consequence, sorting the files lexicographically by file name, the first files contain tweets from April, despite the presence of other files containing tweets from February and March.
 
 \subsection{Filtering and Pre-processing}
 \label{subsec:dataset:preprocessing}
@@ -67,7 +67,7 @@ The dataset contains a sizeable number of retweets or tweets that differ only fo
   \item we dropped documents shorter than 100 characters.
 \end{enumerate}
 
-These steps were performed having two objectives in mind: (i) dropping duplicates, after discarding noisy and irrelevant information; and (ii) reducing the number of different characters that could be found in the tweets. Indeed, a high number of different characters would force us to employ hash functions that adversely affect the execution time of the main algorithm (see Section~\ref{subsec:experiments:buckets}).
+These steps were performed having two objectives in mind: (i) dropping duplicates, after discarding noisy and irrelevant information; and (ii) reducing the number of different characters that could be found in the tweets. Indeed, a high number of different characters would force us to employ hash functions that adversely affect the execution time of the main algorithm (see Sections~\ref{subsec:experiments:shingles} and~\ref{subsec:experiments:buckets}).
  
 \subsubsection{Pre-processing.} Different pre-processing pipelines were applied to the documents given as input to the main algorithm described in Section~\ref{subsec:models:lsh} and to the neural network described in Section~\ref{subsec:models:transformer}.
 
@@ -97,14 +97,16 @@ Finally, note that, while numbers might be considered noise in some contexts, he
 \section{Models}
 \label{sec:models}
 
-In this section we briefly describe the algorithm used to find similar documents (Section~\ref{subsec:models:lsh}) and the neural network we used as a baseline to compare performances (Section~~\ref{subsec:models:transformer}). We also propose an example to motivate the comparison between the two models (Section~\ref{subsec:models:motivation}).
+In this section we briefly describe the algorithm used to find similar documents (Section~\ref{subsec:models:lsh}) and the neural network used as a baseline to compare performances (Section~~\ref{subsec:models:transformer}). We also propose an example to motivate the comparison between the two models (Section~\ref{subsec:models:motivation}).
 
 \subsection{Locality-Sensitive Hashing Algorithm}
 \label{subsec:models:lsh}
 
-In order to find the pairs of similar documents, we employed the algorithm described in~\cite{leskovec_2020}, which can scale up to massive datasets. We assume the reader to be familiar with the algorithm and we provide here only a brief summary. The algorithm converts each document to a set of k-grams (shingles), builds a characteristic matrix and then a signature matrix by using hash functions, applies a locality-sensitive hashing (LSH) technique to find candidate similar pairs and, finally, checks the candidate pairs against the signature matrix to discard false positive pairs. Optionally, one could check the candidate pairs also against the characteristic matrix, if available.
+In order to find the pairs of similar documents, we employed the locality-sensitive hashing (LSH) algorithm described in~\cite{leskovec_2020}, which can scale up to massive datasets. We assume the reader to be familiar with the algorithm and we provide here only a brief summary. The algorithm converts each document to a set of k-grams (shingles), builds a characteristic matrix and then a signature matrix by using hash functions, applies a LSH technique to find candidate similar pairs and, finally, checks the candidate pairs against the signature matrix to discard false positive pairs. Optionally, one could check the candidate pairs also against the characteristic matrix, if available.
 
-\subsubsection{Hash functions.} Concerning the implementation details, we first discuss the various hash functions exploited by the algorithm. To avoid keeping the shingles in main memory, the algorithm hashes each shingle to a bucket, in the form of an integer. The total number of buckets associated to the hash function has a significant impact on the execution time. We generated different hash functions by truncating the output of the SHA-256 hash function at varying lengths of bits. In this way, we could experiment with different numbers of buckets.  
+\subsubsection{Hash functions.} Concerning the implementation details, we first discuss the various hash functions exploited by the algorithm. 
+
+To avoid keeping the shingles in main memory, the algorithm hashes each shingle to a bucket, which is associated to an integer. This integer takes less space in memory than the shingle. The total number of buckets associated to the hash function has a significant impact on the execution time (see Section~\ref{subsec:experiments:buckets}). We generated different hash functions by truncating the output of the SHA-256 hash function at varying lengths of bits. In this way, we could experiment with different numbers of buckets.  
 
 The algorithm requires also hash functions that could map a row index to another row index. These hash functions are used to efficiently perform permutations of the rows. Since the number of these hash functions is a hyper-parameter set by the user, we needed a way to generate an arbitrary number of different hash functions. To this end, we followed the approach described in~\cite{liu_2015}, generating hash functions of the form
 \[
@@ -117,17 +119,19 @@ Inside the LSH technique, to check whether two columns were equal, we hashed the
 \subsubsection{Characteristic matrix.} In order to build the signature matrix, the algorithm also requires a characteristic matrix, where each column represents a document and each entry indicates whether or not a given shingle is contained in a given document. We store the characteristic matrix as a dictionary that maps each document index to its set of shingles. In this way, we do not waste memory to store the null entries.
 
 \subsubsection{LSH.} Concerning the LSH technique, in order to find the number of bands for the signature matrix and the correlated number of rows in each band, we used \texttt{scipy} and solved the system of equations
-\begin{equation}
+\begin{equation*}
   \begin{cases}
     t = (\frac{1}{b})^\frac{1}{r}\\
     b \cdot r = n
   \end{cases}\,,
-\end{equation}
+\end{equation*}
 where $t$ is a threshold on the required similarity between two documents, $b$ is the number of bands, $r$ is the number of rows in each band and $n$ is the total number of rows of the signature matrix.
 
-\subsubsection{Scalability bottlenecks.} The implementation of the algorithm features two possible scalability bottlenecks. The first one concerns the characteristic matrix. Using 3-grams, 4-grams, 5-grams and 6-grams, each document contained on average 120-130 shingles. If we represented each shingle with a 32-bit integer, processing 10 million documents would require roughly 5 gigabytes of main memory ($\frac{1e7 \cdot 130 \cdot 32}{8e9} = 5.2$). Keeping the whole dataset (40 million documents) in main memory might prove challenging or even impossible. A solution could be to store the documents representations as sets of shingles in mass memory and read them one at a time when building the signature matrix. However, that would slow down an already time consuming operation, since we would have to cycle through the documents for each row of the characteristic matrix.
+\subsubsection{Scalability bottlenecks.} The implementation of the algorithm features two possible scalability bottlenecks. The first one concerns the characteristic matrix. Using 3-grams, 4-grams, 5-grams and 6-grams, each document contained on average 120-130 shingles. If we represented each shingle with a 32-bit integer, processing 10 million documents would require roughly 5 gigabytes of main memory ($\frac{1\text{e}7 \cdot 130 \cdot 32}{8\text{e}9} = 5.2$). Keeping the whole dataset (40 million documents) in main memory might prove challenging or even impossible. A solution could be to store the representations of the documents as sets of shingles in mass memory and read them one at a time when building the signature matrix. However, that would slow down an already time consuming operation, since to build the signature matrix we have to cycle through all the documents for each row of the characteristic matrix.
 
-The second bottleneck concerns the number of similar pairs. The lower the value for the threshold, the higher the number of similar pairs identified by the algorithm. When processing millions of documents, even a moderate threshold might saturate the main memory. The only possible solution would be to store the candidate pairs identified by the LSH algorithm on mass memory. This would have to happen within each band of the signature matrix and, therefore, we would not be able to have unique pairs: the same pair might be identified and stored on mass memory in more than one band. This would result in redundant processing. 
+The second bottleneck concerns the number of similar pairs. The lower the value for the threshold, the higher the number of similar pairs identified by the algorithm. When processing millions of documents, even a moderate threshold might saturate the main memory. A solution could be to store the candidate pairs identified by the LSH technique on mass memory. This would have to happen within each band of the signature matrix and, therefore, we would not be able to have unique pairs: the same pair might be identified and stored on mass memory in more than one band. This would result in redundant processing.
+
+It is also worth noting that the time complexity to build the signature matrix is $\mathcal{O}(R D H)$, where $R$ is the number of rows of the characteristic matrix, $D$ is the number of documents and $H$ is the number of hash functions that perform permutations. Building the signature matrix is the most time consuming operation within the procedure.
 
 \subsection{Neural Network (Transformer)}
 \label{subsec:models:transformer}
@@ -176,13 +180,16 @@ In this section, after reviewing some of the metrics used for evaluation (Sectio
 
 All the experiments were carried out using the files covering the tweets from the 1$^{\text{st}}$ of April 2022 to the 7$^{\text{th}}$ of April 2022. We selected only the tweets in the English language. We refer to Section~\ref{subsec:dataset:preprocessing} for the filtering and pre-processing techniques adopted. The analyzed files contained around 2 million documents. After the filtering, only 221,615 documents remained. This confirms that the dataset is filled with almost identical or very short tweets. 
 
+The experiments were run on a machine with 16 GB of
+RAM and a CPU Intel(R) Core(TM) i7-9700K 3.60GHz with 8 cores.
+
 \subsection{Metrics}
 \label{subsec:experiments:metrics}
 
 We define the following metrics: precision, recall, F1-score and mean absolute error (MAE). Within a massive dataset, the number of pairs of dissimilar documents would be preponderant. Therefore, accuracy would likely be very high regardless of the capabilities of the algorithm.
 For this reason, we did not consider accuracy. 
 
-In this context, TP is the number of true positive pairs, FP is the number of false positive pairs, and FN is the number of false negative pairs. Those quantities were obtained by computing the actual Jaccard similarity between the documents, by using the characteristic matrix. Afterwards, we checked if the Jaccard similarity was higher than the threshold.
+In this context, TP is the number of true positive pairs, FP is the number of false positive pairs, and FN is the number of false negative pairs. Those quantities were obtained by computing the actual Jaccard similarity between the documents, which is made possible by directly using the characteristic matrix. Afterwards, we checked if the Jaccard similarity was higher than the threshold.
 If the algorithm identified a pair as similar, but the Jaccard similarity did not exceed the threshold, we considered the pair as false positive. If the algorithm identified a pair as similar and the Jaccard similarity exceeded the threshold, we considered the pair as true positive. If the algorithm identified a pair as not similar, but the Jaccard similarity exceeded the threshold, we considered the pair as false negative.
 
 Precision is defined as 
@@ -212,24 +219,24 @@ where $x$ and $y$ are respectively the similarity estimated by the algorithm and
 \begin{figure}
   \center
   \includegraphics[width=1\textwidth]{../img/char_growth.png}
-  \caption{Growth in the number of characters as the number of documents increases.} 
+  \caption{Growth in the number of different characters as the number of documents increased.} 
   \label{fig:experiments:char_growth}
 \end{figure}
 
 \begin{figure}
   \center
   \includegraphics[width=1\textwidth]{../img/shingles_growth.png}
-  \caption{Growth in the number of shingles as the number of documents increases. The growth is shown for shingles obtained with different k-grams.} 
+  \caption{Growth in the number of different shingles as the number of documents increased. The growth is shown for shingles obtained with different k-grams.} 
   \label{fig:experiments:shingles_growth}
 \end{figure}
 
-In this first experiment we wanted to gauge how the number of different shingles (or k-grams) and characters within the whole corpus varied as the number of documents increased.
+In this first experiment we wanted to gauge how the number of different shingles (or k-grams) and characters varied as the number of documents increased.
 
-In Figure~\ref{fig:experiments:char_growth} we can see how the number of characters grew as the number of documents increased. In particular, we can see how, from 100,000 documents onwards, the number of characters was stable at around 65 characters (68, to be precise). This could be useful to get a hint on the appropriate k-gram with respect to the number of buckets of the hash function that maps k-grams to integers. For instance, given that $68^3 = 314,432$, we can infer that, if we used 3-grams, we would need a hash function with approximately 300,000 buckets.
+In Figure~\ref{fig:experiments:char_growth} we can see how the number of different characters grew as the number of documents increased. In particular, we can see how, from 100,000 documents onwards, the number of characters was stable at around 65 characters (68, to be precise). This could be useful to get a hint on the appropriate number of buckets of the hash function that maps k-grams to integers with respect to the chosen k-grams. For instance, given that $68^3 = 314,432$, we can infer that, if we used 3-grams, we would need a hash function with approximately 300,000 buckets.
 
-Working with characters we can get an estimate on the number of buckets that we would need. However, it is unlikely that all the possible shingles will appear in practice. To this end, we also explored how the actual number of different shingles grew as the number of documents increased.
+Working with characters we can get an estimate on the number of buckets that we would need. However, it is unlikely that all the possible shingles will appear in practice. To this end, we also explored how the actual number of different shingles grew as the number of documents increased. This is shown in Figure~\ref{fig:experiments:shingles_growth}. 
 
-In Figure~\ref{fig:experiments:shingles_growth} we can see how the number of different shingles grew as the number of documents increased. It is not surprising to see that, with k-grams having a higher value of k, the number of shingles grew more steeply. We can also see, however, that this growth was approximately logarithmic in shape and stabilized quickly for low values of k. Indeed, for k equal to 3 and 4, most of the shingles had already been found at 50,000 documents. To be precise, at 50,000 documents we had 21,580 shingles with 3-grams and 111,643 shingles with 4-grams. Accordingly, for 3-grams, a hash function with buckets of at least 15 bits would be enough ($2^{15} = 32,768$ buckets). For 4-grams, we would need at least 17 bits to have a fair chance at avoiding collisions ($2^{17} = 131,072$ buckets).
+It is not surprising to see that, with k-grams having a higher value of k, the number of different shingles grew more steeply. We can also see, however, that this growth was approximately logarithmic in shape and stabilized quickly for low values of k. Indeed, for k equal to 3 and 4, most of the different shingles had already been found at 50,000 documents. To be precise, at 50,000 documents we had 21,580 different shingles with 3-grams and 111,643 different shingles with 4-grams. Accordingly, for 3-grams, a hash function with buckets of at least 15 bits would be enough ($2^{15} = 32,768$ buckets). For 4-grams, we would need at least 17 bits to have a fair chance at avoiding collisions ($2^{17} = 131,072$ buckets). We will see, however, that collisions do not affect the performance as badly as one might expect (see Sections~\ref{subsec:experiments:buckets} and~\ref{subsec:experiments:100k}).
 
 % The following experiments will concern mainly 3-grams, 4-grams and 5-grams. Recall that a suitable value of k should give a low probability of finding a given shingle inside a document. On this account, we remark that even with 3-grams the probability of finding a given shingle inside a document would be low. An upper bound on the total number of different shingles in a document is the number of characters in that document. For tweets, that would be 280 characters. Considering 68 possible different characters, the total number of different shingles would be $68^3 = 314,432$. So, at most, the probability of finding a given shingle would be $\frac{280}{68^3} \approx 0.0008$.
 
@@ -241,9 +248,9 @@ In this experiment we wanted to see how increasing the number of bits, and thus 
 The results are shown in Tables~\ref{tab:experiments:buckets_k3}, \ref{tab:experiments:buckets_k4} and \ref{tab:experiments:buckets_k5} for 3-grams, 4-grams and 5-grams, respectively. We can formulate the following observations.
 
 \begin{itemize}
-  \item Using a higher number of bits did not always yield a better result. For instance, we can see that with 3-grams 12 bits yielded the best F1-score.  Although the corpus was limited to 100 documents, this might still suggest that collisions have only a mild impact on the performance.
+  \item Using a higher number of bits did not always yield a better result. For instance, we can see that with 3-grams 12 bits yielded the best F1-score.  Although the corpus was limited to 100 documents, this might still suggest that collisions do not affect significantly the performance.
   \item Across all the different numbers of bits, 3-grams obtained high values of F1-score most consistently. 
-  \item The higher the value of k in k-grams, the lower the number of pairs estimated as similar.
+  \item The higher the value of k in k-grams, the lower the number of pairs estimated as similar. This is to be expected and, indeed, with 1-grams we would find that almost all documents are similar.
   \item Increasing the number of bits raised the execution time. With 22 bits, processing 100 documents took roughly 25 minutes. Coupled with a huge number of documents, this might make working with a high number of buckets prohibitive from the perspective of execution time.  
 \end{itemize}
 
@@ -388,7 +395,7 @@ In this experiment we wanted to verify how the number of hash functions used to 
 The results are shown in Tables~\ref{tab:experiments:hashes_k3}, \ref{tab:experiments:hashes_k4} and \ref{tab:experiments:hashes_k5} for 3-grams, 4-grams and 5-grams, respectively. We can formulate the following observations.
 
 \begin{itemize}
-  \item Increasing the number of hash functions decreased the number of pairs estimated as similar and increased the precision. The effect is similar to what we observed in the threshold experiment, but with a significant difference. Here we can see how recall got progressively worse as we increased the number of hash functions. The takeaway is not to increase drastically the number of hash functions and not to rely on the sole precision to evaluate the algorithm. This will be important for our final experiment, because in that context we will be unable to measure recall and F1-score due to the huge number of documents. 
+  \item Increasing the number of hash functions decreased the number of pairs estimated as similar and increased the precision. The effect is similar to what we observed in the threshold experiment, but with a significant difference. Here we can see how recall got progressively worse as we increased the number of hash functions. The takeaway is not to increase drastically the number of hash functions and not to rely on the sole precision to evaluate the algorithm. This will be important for our final experiment, because in that context we will be unable to measure recall and F1-score due to the huge number of documents (see Section~\ref{subsec:experiments:100k}). 
   \item 200 hash functions seemed to strike a good compromise between precision and recall across all the different k-grams.
   \item The increase in execution time, when working with a higher number of hash functions, was negligible.
 \end{itemize}
@@ -448,44 +455,59 @@ The results are shown in Tables~\ref{tab:experiments:hashes_k3}, \ref{tab:experi
     \end{tabular}
 \end{table}
 
-\subsection{Similarity between 100,000 Tweets}
+\subsection{Similarity Between 100,000 Tweets}
 \label{subsec:experiments:100k}
 
-For this last experiment, we compared the results of the algorithm with different configurations of hyper-parameters against the Transformer. We used the Transformer to compute the similarity only between the pairs selected by the LSH algorithm. After that, we compared the rank-order correlation between the similarities computed by the two models using Kendall's Tau and Spearman's Rho. Both Kendall's Tau and Spearman's Rho range from -1 to +1, where -1 means strong disagreement, 0 means no correlation and +1 means strong agreement. We also considered Precision and MAE, as defined in Section~\ref{subsec:experiments:metrics}. We forwent recall and F1-score due to the high number of documents.
+For this last experiment, we compared the results of the algorithm with different configurations of hyper-parameters against the Transformer. We used the Transformer to compute the similarity only between the pairs selected by the LSH algorithm. After that, we compared the rank-order correlation between the similarities computed by the two models using Kendall's Tau and Spearman's Rho. Both Kendall's Tau and Spearman's Rho range from -1 to +1, where -1 means strong disagreement, 0 means no correlation and +1 means strong agreement. We also considered Precision and MAE, as defined in Section~\ref{subsec:experiments:metrics}. We forwent recall and F1-score, which would require to compute the similarity between all the possible pairs of documents, due to the high number of documents.
 
 The results are shown in Table~\ref{tab:experiments:d100k}. We can formulate the following observations.
 
 \begin{itemize}
-  \item The strongest correlations were obtained by using 3-grams, with 4-grams being a close second.
+  \item The strongest correlations were obtained by using 3-grams.
   \item Surprisingly, even with 12-bits hash functions the algorithm achieved a good performance. This supports our hypothesis that collisions have a limited impact on the performance. Additionally, with 12-bits hash functions the algorithm is able to churn out results at a fast rate (around one hour for 100,000 documents).   
   \item In general, the similarity values computed by the algorithm showed only a moderate positive correlation with the similarity values computed by the Transformer. Therefore, we can conclude that the pairs of documents estimated as similar by the algorithm may be lacking a semantic association.
-  \item Increasing both the threshold and the number of hash function on 3-grams deteriorated the performance of the algorithm.
+  \item Increasing both the threshold and the number of hash functions on 3-grams deteriorated the performance of the algorithm.
+  \item With 5-grams, the algorithm returned almost half of the pairs that we got using 3-grams and the same threshold. As we mentioned in Section~\ref{subsec:experiments:hashes}, this suggests that, despite the high precision, the algorithm working on 5-grams produced a high number of false negatives. 
 \end{itemize}
 
-In Table we provide an example of similar documents identified by the algorithm having the best Kendall's Tau correlation in Table~\ref{tab:experiments:d100k}.
+In Table~\ref{tab:experiments:examples} we provide examples of similar documents identified by the algorithm having the best Kendall's Tau correlation in Table~\ref{tab:experiments:d100k}. Note how, despite the heavy filtering, these documents are almost identical. Note also how the practice of filling tweets with hashtags may result in an artificial similarity. Unfortunately, removing hashtags from the documents would render moot any comparison between tweets. 
 
 \begin{table}
   \caption{Performance of the algorithm on a corpus of 100,000 documents. Kendall's Tau and Spearman's Rho correlations used the Transformer described in Section~\ref{subsec:models:transformer} to compare the similarity values. We highlighted in bold the best results.}
   \label{tab:experiments:d100k}
   \centering
   \begin{tabular}{llllccccc}
-  \toprule
-    &     &     &    &  Pairs No. &  Prec. &    MAE &  Kendall &  Spearman \\ K & T & Hash No. & Hash Bits &            &        &        &          &           \\
-  \midrule 
-  3 & 0.6 & 200 & 16 &     174941 &  0.956 &  0.023 &    0.229 &     0.323 \\  & 0.8 & 300 & 16 &      30917 &  0.903 &  0.015 &    0.076 &     0.109 \\  & 0.6 & 200 & 12 &     163221 &  0.967 &  0.020 &    0.230 &     0.319 \\ 5 & 0.6 & 200 & 16 &      94191 &  0.900 &  0.027 &    0.143 &     0.202 \\
-  \bottomrule
-  \end{tabular}
+    \toprule
+      &     &     &    &  Pairs No. &  Prec. &    MAE &  Kendall &  Spearman \\
+    K & T & Hash No. & Hash Bits &            &        &        &          &           \\
+    \midrule
+    3 & 0.6 & 200 & 16 &     174941 &  0.956 &  0.023 &    0.229 &     \textbf{0.323} \\
+      3 & 0.8 & 300 & 16 &      30917 &  0.903 &  \textbf{0.015} &    0.076 &     0.109 \\
+      3 & 0.6 & 200 & 12 &     163221 &  0.967 &  0.020 &    \textbf{0.230} &     0.319 \\
+      3 &   0.6  & 100 & 12 &     182562 &  0.940 &  0.029 &    0.219 &     0.304 \\
+    4 & 0.6 & 200 & 18 &     112186 &  0.961 &  0.022 &    0.136 &     0.192 \\
+    4  &   0.6  &  200   & 12 &     108446 &  0.976 &  0.022 &    0.148 &     0.205 \\
+    5 & 0.6 & 200 & 16 &      94191 &  0.900 &  0.027 &    0.143 &     0.202 \\
+    5  &  0.6   &  200   & 12 &      82153 &  \textbf{0.977} &  0.022 &    0.115 &     0.161 \\
+    \bottomrule
+    \end{tabular}
 \end{table}
 
 \begin{table}
+  \caption{Examples of similar documents identified by the algorithm having the best Kendall's Tau correlation in Table~\ref{tab:experiments:d100k}.}
+  \label{tab:experiments:examples}
   \centering
   \begin{tabular}{p{0.35\textwidth}@{\hspace{0.5cm}}p{0.35\textwidth}@{\hspace{0.5cm}}r}
     \toprule
      Doc. 1 & Doc. 2 & Similarity \\
     \midrule
-    \#Russia’s President Vladimir \#Putin says he has signed a decree saying foreign buyers must pay in rubles for Russian gas from April 1, and contracts would be halted if these payments are not made.\url{https://t.co/IUBuHMgw4n} & \#Putin - "Unfriendly countries"  to start paying for Russian gas in rubles from April 1. Buyers not adhering to this will face gas contract termination by Russia. & 0.728 \\
+    \#Russia’s President Vladimir \#Putin says he has signed a decree saying foreign buyers must pay in rubles for Russian gas from April 1, and contracts would be halted if these payments are not made. \url{https://t.co/IUBuHMgw4n} & Russian President Vladimir \#Putin said on Thursday that he has signed a decree saying foreign buyers must pay in roubles for Russian gas from the first of \#April and contracts would be halted if these payments were not made. \url{https://t.co/BApCaIiaOo} & 0.810 \\
     \hline
-    'A lesson to the world \#Ukraine \#Germany, \#Britain, \#France They did not think of the people, but put idiots \#Biden first and its economy last, and their persistence is the height of stupidity. Therefore, they should be replaced by people who put their people first & @bho Russia has ignored its obligations and worked to present & 0.877 \\
+    An oil depot is on fire in \#Belgorod, \#Russia. “The emergency services went to the place of fire, measures are being taken to eliminate it", said Gladkov, the governor of the region in his Telegram channel. \url{https://t.co/ey7rC5ChSz} & Horrible Video- An oil depot is on \#fire in \#Belgorod, \#Russia. “The \#emergency services went to the place of fire, measures are being taken to eliminate it", said \#Gladkov, the governor of the region in his Telegram channel.\#RussianWarCrimes \#UkraineRussianWar \url{https://t.co/WmqRo7LkaT} & 0.805 \\
+    \hline
+    If Putin is to be tried for war crimes, of course he can’t remain in power \url{https://t.co/CGmEEQlRu7} \#HolocaustMemorialDay \#MLK \#GrenfellTower \#BidenHarris \#BlackLivesMatter  \#OprahMeghanHarry \#ReparationsNow \#Zelensky \#Ukraine \#Kyiv \#karkhiv \#Odesa \#Lviv \#Mariupol \#Lutsk \#Dnipro & Putin's white privilege Prosecuting war crimes demands outrage, will and action \url{https://t.co/3vbAFtqjY0} \#HolocaustMemorialDay \#MLK \#GrenfellTower \#BidenHarris \#BlackLivesMatter  \#OprahMeghanHarry \#ReparationsNow \#Zelensky \#Ukraine \#Kyiv \#karkhiv \#Kherson \#Odesa \#Lviv \#Mariupol & 0.635\\
+    \hline
+    @sputnikint @russiatoday @moscowtimes @moscowgov @emb\_rus @russia Other 134,000 young \#Russia conscript as soldiers to be sent by the old corrupt \#Putin to die in \#Ukraine, not for their homeland but only for  personal glory and enrichment of Putin and his gang. Is it worth it ? \url{https://t.co/O4VH6KINOK} & @russiatoday @russiaun @russianembassy @sputnikint @russiabeyond\_it @russia @moscowtimes @russia Do the new 134,000 young men from \#Russia conscripted by \#Putin know that they go to die in \#Ukraine not for their homeland but only for glory and enrichment of Putin and his gang? \url{https://t.co/Ii2vebZOGf} & 0.635\\
     \bottomrule
   \end{tabular}
 \end{table}
@@ -502,8 +524,15 @@ Another critical aspect of the algorithm was the execution time, at least with h
 
 To further improve the execution time, we could also use a non-cryptographic hash function, instead of SHA-256, to generate hash functions with a variable number of buckets.
 
-PUT THE BADGE IN README
-Example of similar tweets
+\section*{Statement}
+\textit{I/We declare that this material,
+which I/We now submit for assessment, is entirely my/our own work and has not been
+taken from the work of others, save and to the extent that such work has been cited and
+acknowledged within the text of my/our work. I/We understand that plagiarism, collusion,
+and copying are grave and serious offences in the university and accept the penalties that
+would be imposed should I engage in plagiarism, collusion or copying. This assignment,
+or any part of it, has not been previously submitted by me/us or any other person for
+assessment on this or any other course of study.}
 
 
 \bibliographystyle{splncs04}
